@@ -123,48 +123,67 @@ const DatabaseService = {
      * @param playerId - L'identifiant du joueur.
      * @param stats - Un objet partiel contenant les statistiques à mettre à jour.
      */
-    updatePlayerStats: (playerId: number, stats: Partial<PlayerStat>) => {
-        db.transaction(tx => {
-            const fields = [];
-            const values: any[] = [];
+    updatePlayerStats: (playerId: number, stats: Partial<PlayerStat>): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            db.transaction(
+                tx => {
+                    const fields = [];
+                    const values: any[] = [];
 
-            if (stats.attacks !== undefined) {
-                fields.push("attacks = ?");
-                values.push(stats.attacks);
-            }
-            if (stats.attackSuccess !== undefined) {
-                fields.push("attackSuccess = ?");
-                values.push(stats.attackSuccess);
-            }
-            if (stats.attackFail !== undefined) {
-                fields.push("attackFail = ?");
-                values.push(stats.attackFail);
-            }
-            if (stats.services !== undefined) {
-                fields.push("services = ?");
-                values.push(stats.services);
-            }
-            if (stats.serviceSuccess !== undefined) {
-                fields.push("serviceSuccess = ?");
-                values.push(stats.serviceSuccess);
-            }
-            if (stats.receptions !== undefined) {
-                fields.push("receptions = ?");
-                values.push(stats.receptions);
-            }
-            if (stats.blocks !== undefined) {
-                fields.push("blocks = ?");
-                values.push(stats.blocks);
-            }
+                    if (stats.attacks !== undefined) {
+                        fields.push("attacks = ?");
+                        values.push(stats.attacks);
+                    }
+                    if (stats.attackSuccess !== undefined) {
+                        fields.push("attackSuccess = ?");
+                        values.push(stats.attackSuccess);
+                    }
+                    if (stats.attackFail !== undefined) {
+                        fields.push("attackFail = ?");
+                        values.push(stats.attackFail);
+                    }
+                    if (stats.services !== undefined) {
+                        fields.push("services = ?");
+                        values.push(stats.services);
+                    }
+                    if (stats.serviceSuccess !== undefined) {
+                        fields.push("serviceSuccess = ?");
+                        values.push(stats.serviceSuccess);
+                    }
+                    if (stats.receptions !== undefined) {
+                        fields.push("receptions = ?");
+                        values.push(stats.receptions);
+                    }
+                    if (stats.blocks !== undefined) {
+                        fields.push("blocks = ?");
+                        values.push(stats.blocks);
+                    }
 
-            values.push(playerId);
+                    values.push(playerId);
 
-            tx.executeSql(
-                `UPDATE players SET ${fields.join(", ")} WHERE id = ?;`,
-                values
+                    tx.executeSql(
+                        `UPDATE players SET ${fields.join(", ")} WHERE id = ?;`,
+                        values,
+                        (_, result) => {
+                            resolve();
+                        },
+                        (_, error) => {
+                            reject(error);
+                            return false;
+                        }
+                    );
+                }, (error) => {
+                    console.error('Erreur lors de la transaction SQL :', error);
+                    reject(error);
+                },
+                () => {
+                    console.log('Transaction SQL réussie');
+                    resolve();
+                }
             );
         });
     },
+
 
     /**
      * Supprime un joueur de la base de données.

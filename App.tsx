@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -16,9 +16,11 @@ type RootStackParamList = {
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
-DatabaseService.initDB()
 
 const App: React.FC = () => {
+    useEffect(() => {
+        DatabaseService.initDB();
+    }, []);
     return (
         <NavigationContainer>
             <Stack.Navigator initialRouteName="HomeScreen">
