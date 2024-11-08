@@ -48,4 +48,5 @@ const styles = StyleSheet.create({
     },
     position: {
         color: 'blue',
-     
+    }
+);

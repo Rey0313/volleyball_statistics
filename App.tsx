@@ -6,6 +6,7 @@ import HomeScreen from './app/screens/HomeScreen';
 import PlayerListScreen from './app/screens/PlayerListScreen';
 import StatInput from './app/components/StatInput';
 import CreatePlayerScreen from './app/screens/CreatePlayerScreen';
+import DatabaseService from './app/services/DatabaseService';
 
 type RootStackParamList = {
     HomeScreen: undefined;
@@ -15,6 +16,7 @@ type RootStackParamList = {
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
+DatabaseService.initDB()
 
 const App: React.FC = () => {
     return (

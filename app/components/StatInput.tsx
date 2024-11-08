@@ -1,8 +1,11 @@
 // /components/StatInput.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Button, Text, ToastAndroid } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
+import DatabaseService from '../services/DatabaseService';
+import PlayerStat from '../models/PlayerStat';
+
 
 type StatInputScreenRouteProp = RouteProp<RootStackParamList, 'StatInput'>;
 
@@ -14,9 +17,34 @@ const StatInput: React.FC<Props> = ({ route }) => {
     const { playerId } = route.params;
     const [player, setPlayer] = useState<PlayerStat | null>(null);
 
+    useEffect(() => {
+        // Charger les infos du joueur
+        DatabaseService.getPlayerById(playerId)
+            .then(playerData => {
+                if (playerData) {
+                    setPlayer(playerData);
+                } else {
+                    ToastAndroid.show("Joueur non trouvé", ToastAndroid.SHORT);
+                }
+            })
+            .catch(error => {
+                console.error("Erreur lors du chargement du joueur :", error);
+                ToastAndroid.show("Erreur lors du chargement du joueur", ToastAndroid.SHORT);
+            });
+    }, [playerId]);
+
     const updateStat = (statType: string) => {
-        // Incrémenter les statistiques ici
-        ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
+        if (player) {
+            // Incrémenter les statistiques
+            setPlayer(prevPlayer => {
+                if (!prevPlayer) return null;
+                const updatedPlayer = { ...prevPlayer, [statType]: prevPlayer[statType] + 1 };
+                return updatedPlayer as PlayerStat;
+            });
+            ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
+        } else {
+            ToastAndroid.show("Erreur : joueur non chargé", ToastAndroid.SHORT);
+        }
     };
 
     return (
