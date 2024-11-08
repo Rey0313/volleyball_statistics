@@ -53,8 +53,17 @@ const StatInput: React.FC<Props> = ({ route }) => {
                         updatedPlayer.services += 1;
                         updatedPlayer.serviceSuccess += 1;
                         break;
-                    case 'receptions':
+                    case 'serviceFail':
+                        updatedPlayer.services += 1;
+                        updatedPlayer.serviceFail += 1;
+                        break;
+                    case 'receptionSuccess':
                         updatedPlayer.receptions += 1;
+                        updatedPlayer.receptionSuccess += 1;
+                        break;
+                    case 'receptionFail':
+                        updatedPlayer.receptions += 1;
+                        updatedPlayer.receptionFail += 1;
                         break;
                     case 'blocks':
                         updatedPlayer.blocks += 1;
@@ -71,6 +80,8 @@ const StatInput: React.FC<Props> = ({ route }) => {
         }
     };
 
+
+
     const saveStats = () => {
         if (player) {
             DatabaseService.updatePlayerStats(player.id, {
@@ -79,6 +90,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
                 attackFail: player.attackFail,
                 services: player.services,
                 serviceSuccess: player.serviceSuccess,
+                receptionSuccess: player.receptionSuccess,
                 receptions: player.receptions,
                 blocks: player.blocks
             })
@@ -99,41 +111,40 @@ const StatInput: React.FC<Props> = ({ route }) => {
             <Text style={styles.title}>{player ? `Statistiques de ${player.name}` : 'Chargement...'}</Text>
             {player && (
                 <View style={styles.statsContainer}>
-                    <Text style={styles.statText}>Attaques : {player.attackSuccess}/{player.attacks}</Text>
-                    <Text style={styles.statText}>Services : {player.serviceSuccess}/{player.services}</Text>
-                    <Text style={styles.statText}>Réceptions : {player.receptions}</Text>
-                    <Text style={styles.statText}>Blocs : {player.blocks}</Text>
+                    <Text style={styles.statText}>
+                        Attaques : {player.attackSuccess}/{player.attacks}
+                    </Text>
+                    <Text style={styles.statText}>
+                        Services : {player.serviceSuccess}/{player.services}
+                    </Text>
+                    <Text style={styles.statText}>
+                        Réceptions : {player.receptionSuccess}/{player.receptions}
+                    </Text>
+                    <Text style={styles.statText}>
+                        Blocs : {player.blocks}
+                    </Text>
                 </View>
             )}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={[styles.button, styles.attackSuccessButton]}
-                    onPress={() => updateStat('attackSuccess')}
-                >
+                <TouchableOpacity style={[styles.button, styles.attackSuccessButton]} onPress={() => updateStat('attackSuccess')}>
                     <Text style={styles.buttonText}>Attaque Réussie</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, styles.attackFailButton]}
-                    onPress={() => updateStat('attackFail')}
-                >
+                <TouchableOpacity style={[styles.button, styles.attackFailButton]} onPress={() => updateStat('attackFail')}>
                     <Text style={styles.buttonText}>Attaque Ratée</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, styles.serviceSuccessButton]}
-                    onPress={() => updateStat('serviceSuccess')}
-                >
+                <TouchableOpacity style={[styles.button, styles.serviceSuccessButton]} onPress={() => updateStat('serviceSuccess')}>
                     <Text style={styles.buttonText}>Service Réussi</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, styles.receptionButton]}
-                    onPress={() => updateStat('receptions')}
-                >
+                <TouchableOpacity style={[styles.button, styles.serviceFailButton]} onPress={() => updateStat('serviceFail')}>
+                    <Text style={styles.buttonText}>Service Raté</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.button, styles.receptionSuccessButton]} onPress={() => updateStat('receptionSuccess')}>
                     <Text style={styles.buttonText}>Réception Réussie</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, styles.blockButton]}
-                    onPress={() => updateStat('blocks')}
-                >
+                <TouchableOpacity style={[styles.button, styles.receptionFailButton]} onPress={() => updateStat('receptionFail')}>
+                    <Text style={styles.buttonText}>Réception Ratée</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.button, styles.blockButton]} onPress={() => updateStat('blocks')}>
                     <Text style={styles.buttonText}>Bloc Réussi</Text>
                 </TouchableOpacity>
             </View>
@@ -187,8 +198,14 @@ const styles = StyleSheet.create({
     serviceSuccessButton: {
         backgroundColor: '#2196F3',
     },
-    receptionButton: {
-        backgroundColor: '#FF9800',
+    serviceFailButton: {
+        backgroundColor: '#E91E63',
+    },
+    receptionSuccessButton: {
+        backgroundColor: '#009688',
+    },
+    receptionFailButton: {
+        backgroundColor: '#FF5722',
     },
     blockButton: {
         backgroundColor: '#9C27B0',

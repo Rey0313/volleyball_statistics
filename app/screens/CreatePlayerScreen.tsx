@@ -17,7 +17,8 @@ const CreatePlayerScreen: React.FC<Props> = ({ navigation }) => {
     const [position, setPosition] = useState('');
 
     const handleAddPlayer = () => {
-        DatabaseService.addPlayer(new PlayerStat(0, name, position));
+        const newPlayer = new PlayerStat(0, name, position);
+            DatabaseService.addPlayer(newPlayer);
         navigation.goBack();
     };
 

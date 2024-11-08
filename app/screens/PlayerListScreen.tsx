@@ -32,10 +32,12 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.playerName}>{item.name}</Text>
                 <Text style={styles.playerPosition}>{item.position}</Text>
                 <View style={styles.statsRow}>
-                    <Text style={styles.statText}>A: {item.attackSuccess}/{item.attacks}</Text>
-                    <Text style={styles.statText}>S: {item.serviceSuccess}/{item.services}</Text>
-                    <Text style={styles.statText}>R: {item.receptions}</Text>
-                    <Text style={styles.statText}>B: {item.blocks}</Text>
+                    <Text style={styles.statText}>
+                        A: {item.attackSuccess}/{item.attacks}
+                        {'  '}S: {item.serviceSuccess}/{item.services}
+                        {'  '}R: {item.receptionSuccess}/{item.receptions}
+                        {'  '}B: {item.blocks}
+                    </Text>
                 </View>
             </View>
         </TouchableOpacity>

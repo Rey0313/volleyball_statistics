@@ -1,4 +1,5 @@
 // /models/PlayerStat.ts
+
 export default class PlayerStat {
     id: number;
     name: string;
@@ -8,7 +9,10 @@ export default class PlayerStat {
     attackFail: number;
     services: number;
     serviceSuccess: number;
+    serviceFail: number;
     receptions: number;
+    receptionSuccess: number;
+    receptionFail: number;
     blocks: number;
 
     constructor(
@@ -20,7 +24,10 @@ export default class PlayerStat {
         attackFail: number = 0,
         services: number = 0,
         serviceSuccess: number = 0,
+        serviceFail: number = 0,
         receptions: number = 0,
+        receptionSuccess: number = 0,
+        receptionFail: number = 0,
         blocks: number = 0
     ) {
         this.id = id;
@@ -31,7 +38,10 @@ export default class PlayerStat {
         this.attackFail = attackFail;
         this.services = services;
         this.serviceSuccess = serviceSuccess;
+        this.serviceFail = serviceFail;
         this.receptions = receptions;
+        this.receptionSuccess = receptionSuccess;
+        this.receptionFail = receptionFail;
         this.blocks = blocks;
     }
 }

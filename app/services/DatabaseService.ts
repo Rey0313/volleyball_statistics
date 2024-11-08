@@ -12,17 +12,21 @@ const DatabaseService = {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT,
                     position TEXT,
-                    attacks INTEGER,
-                    attackSuccess INTEGER,
-                    attackFail INTEGER,
-                    services INTEGER,
-                    serviceSuccess INTEGER,
-                    receptions INTEGER,
-                    blocks INTEGER
+                    attacks INTEGER DEFAULT 0,
+                    attackSuccess INTEGER DEFAULT 0,
+                    attackFail INTEGER DEFAULT 0,
+                    services INTEGER DEFAULT 0,
+                    serviceSuccess INTEGER DEFAULT 0,
+                    serviceFail INTEGER DEFAULT 0,
+                    receptions INTEGER DEFAULT 0,
+                    receptionSuccess INTEGER DEFAULT 0,
+                    receptionFail INTEGER DEFAULT 0,
+                    blocks INTEGER DEFAULT 0
                 );
             `);
         });
     },
+
 
     /**
      * Ajoute un nouveau joueur dans la base de données.
@@ -31,11 +35,22 @@ const DatabaseService = {
     addPlayer: (player: PlayerStat) => {
         db.transaction(tx => {
             tx.executeSql(
-                `INSERT INTO players (name, position, attacks, attackSuccess, attackFail, services, serviceSuccess, receptions, blocks) VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0);`,
-                [player.name, player.position]
+                `INSERT INTO players (name, position) VALUES (?, ?);`,
+                [player.name, player.position],
+                (_, result) => {
+                    console.log('Joueur ajouté avec succès');
+                },
+                (_, error) => {
+                    console.error("Erreur lors de l'ajout du joueur :", error);
+                    return false;
+                }
             );
+        }, error => {
+            console.error("Erreur de transaction lors de l'ajout du joueur :", error);
         });
     },
+
+
 
     /**
      * Récupère tous les joueurs de la base de données.
@@ -56,13 +71,16 @@ const DatabaseService = {
                                     row.id,
                                     row.name,
                                     row.position,
-                                    row.attacks,
-                                    row.attackSuccess,
-                                    row.attackFail,
-                                    row.services,
-                                    row.serviceSuccess,
-                                    row.receptions,
-                                    row.blocks
+                                    Number(row.attacks),
+                                    Number(row.attackSuccess),
+                                    Number(row.attackFail),
+                                    Number(row.services),
+                                    Number(row.serviceSuccess),
+                                    Number(row.serviceFail),
+                                    Number(row.receptions),
+                                    Number(row.receptionSuccess),
+                                    Number(row.receptionFail),
+                                    Number(row.blocks)
                                 )
                             );
                         }
@@ -76,6 +94,7 @@ const DatabaseService = {
             });
         });
     },
+
 
     /**
      * Récupère un joueur par son identifiant.
@@ -96,13 +115,16 @@ const DatabaseService = {
                                     row.id,
                                     row.name,
                                     row.position,
-                                    row.attacks,
-                                    row.attackSuccess,
-                                    row.attackFail,
-                                    row.services,
-                                    row.serviceSuccess,
-                                    row.receptions,
-                                    row.blocks
+                                    Number(row.attacks),
+                                    Number(row.attackSuccess),
+                                    Number(row.attackFail),
+                                    Number(row.services),
+                                    Number(row.serviceSuccess),
+                                    Number(row.serviceFail),
+                                    Number(row.receptions),
+                                    Number(row.receptionSuccess),
+                                    Number(row.receptionFail),
+                                    Number(row.blocks)
                                 )
                             );
                         } else {
@@ -150,9 +172,21 @@ const DatabaseService = {
                         fields.push("serviceSuccess = ?");
                         values.push(stats.serviceSuccess);
                     }
+                    if (stats.serviceFail !== undefined) {
+                        fields.push("serviceFail = ?");
+                        values.push(stats.serviceFail);
+                    }
                     if (stats.receptions !== undefined) {
                         fields.push("receptions = ?");
                         values.push(stats.receptions);
+                    }
+                    if (stats.receptionSuccess !== undefined) {
+                        fields.push("receptionSuccess = ?");
+                        values.push(stats.receptionSuccess);
+                    }
+                    if (stats.receptionFail !== undefined) {
+                        fields.push("receptionFail = ?");
+                        values.push(stats.receptionFail);
                     }
                     if (stats.blocks !== undefined) {
                         fields.push("blocks = ?");
@@ -172,17 +206,14 @@ const DatabaseService = {
                             return false;
                         }
                     );
-                }, (error) => {
-                    console.error('Erreur lors de la transaction SQL :', error);
-                    reject(error);
                 },
-                () => {
-                    console.log('Transaction SQL réussie');
-                    resolve();
+                error => {
+                    reject(error);
                 }
             );
         });
     },
+
 
 
     /**
