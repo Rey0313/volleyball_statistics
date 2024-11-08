@@ -90,7 +90,9 @@ const StatInput: React.FC<Props> = ({ route }) => {
                 attackFail: player.attackFail,
                 services: player.services,
                 serviceSuccess: player.serviceSuccess,
+                serviceFail: player.serviceFail,
                 receptionSuccess: player.receptionSuccess,
+                receptionFail: player.receptionFail,
                 receptions: player.receptions,
                 blocks: player.blocks
             })
