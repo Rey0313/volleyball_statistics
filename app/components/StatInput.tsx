@@ -98,6 +98,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
             })
             .then(() => {
                 ToastAndroid.show("Statistiques sauvegardées !", ToastAndroid.SHORT);
+                navigation.navigate('PlayerListScreen');
             })
             .catch(error => {
                 console.error("Erreur lors de la sauvegarde des statistiques :", error);
