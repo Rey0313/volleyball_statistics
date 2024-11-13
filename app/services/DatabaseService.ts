@@ -5,27 +5,27 @@ import PlayerStat from '../models/PlayerStat';
 const db = SQLite.openDatabase({ name: 'playerStats.db', location: 'default' });
 
 const DatabaseService = {
-    initDB: () => {
-        db.transaction(tx => {
-            tx.executeSql(`
-                CREATE TABLE IF NOT EXISTS players (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT,
-                    position TEXT,
-                    attacks INTEGER DEFAULT 0,
-                    attackSuccess INTEGER DEFAULT 0,
-                    attackFail INTEGER DEFAULT 0,
-                    services INTEGER DEFAULT 0,
-                    serviceSuccess INTEGER DEFAULT 0,
-                    serviceFail INTEGER DEFAULT 0,
-                    receptions INTEGER DEFAULT 0,
-                    receptionSuccess INTEGER DEFAULT 0,
-                    receptionFail INTEGER DEFAULT 0,
-                    blocks INTEGER DEFAULT 0
-                );
-            `);
-        });
-    },
+   initDB: () => {
+       db.transaction(tx => {
+           tx.executeSql(`
+               CREATE TABLE IF NOT EXISTS players (
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   name TEXT,
+                   position TEXT,
+                   attacks INTEGER DEFAULT 0,
+                   attackSuccess INTEGER DEFAULT 0,
+                   services INTEGER DEFAULT 0,
+                   serviceSuccess INTEGER DEFAULT 0,
+                   receptions INTEGER DEFAULT 0,
+                   receptionSuccess INTEGER DEFAULT 0,
+                   blocks INTEGER DEFAULT 0,
+                   blockSuccess INTEGER DEFAULT 0,
+                   passesFail INTEGER DEFAULT 0,
+                   faults INTEGER DEFAULT 0
+               );
+           `);
+       });
+   },
 
 
     /**
@@ -60,7 +60,7 @@ const DatabaseService = {
         return new Promise((resolve, reject) => {
             db.transaction(tx => {
                 tx.executeSql(
-                    `SELECT * FROM players;`,
+                    `SELECT * FROM players group by position;`,
                     [],
                     (_, results) => {
                         const players: PlayerStat[] = [];
@@ -73,14 +73,14 @@ const DatabaseService = {
                                     row.position,
                                     Number(row.attacks),
                                     Number(row.attackSuccess),
-                                    Number(row.attackFail),
                                     Number(row.services),
                                     Number(row.serviceSuccess),
-                                    Number(row.serviceFail),
                                     Number(row.receptions),
                                     Number(row.receptionSuccess),
-                                    Number(row.receptionFail),
-                                    Number(row.blocks)
+                                    Number(row.blocks),
+                                    Number(row.blockSuccess),
+                                    Number(row.passesFail),
+                                    Number(row.faults)
                                 )
                             );
                         }
@@ -117,14 +117,14 @@ const DatabaseService = {
                                     row.position,
                                     Number(row.attacks),
                                     Number(row.attackSuccess),
-                                    Number(row.attackFail),
                                     Number(row.services),
                                     Number(row.serviceSuccess),
-                                    Number(row.serviceFail),
                                     Number(row.receptions),
                                     Number(row.receptionSuccess),
-                                    Number(row.receptionFail),
-                                    Number(row.blocks)
+                                    Number(row.blocks),
+                                    Number(row.blockSuccess),
+                                    Number(row.passesFail),
+                                    Number(row.faults)
                                 )
                             );
                         } else {
@@ -160,10 +160,6 @@ const DatabaseService = {
                         fields.push("attackSuccess = ?");
                         values.push(stats.attackSuccess);
                     }
-                    if (stats.attackFail !== undefined) {
-                        fields.push("attackFail = ?");
-                        values.push(stats.attackFail);
-                    }
                     if (stats.services !== undefined) {
                         fields.push("services = ?");
                         values.push(stats.services);
@@ -171,10 +167,6 @@ const DatabaseService = {
                     if (stats.serviceSuccess !== undefined) {
                         fields.push("serviceSuccess = ?");
                         values.push(stats.serviceSuccess);
-                    }
-                    if (stats.serviceFail !== undefined) {
-                        fields.push("serviceFail = ?");
-                        values.push(stats.serviceFail);
                     }
                     if (stats.receptions !== undefined) {
                         fields.push("receptions = ?");
@@ -184,13 +176,21 @@ const DatabaseService = {
                         fields.push("receptionSuccess = ?");
                         values.push(stats.receptionSuccess);
                     }
-                    if (stats.receptionFail !== undefined) {
-                        fields.push("receptionFail = ?");
-                        values.push(stats.receptionFail);
-                    }
                     if (stats.blocks !== undefined) {
                         fields.push("blocks = ?");
                         values.push(stats.blocks);
+                    }
+                    if (stats.blockSuccess !== undefined) {
+                        fields.push("blockSuccess = ?");
+                        values.push(stats.blockSuccess);
+                    }
+                    if (stats.passesFail !== undefined) {
+                        fields.push("passesFail = ?");
+                        values.push(stats.passesFail);
+                    }
+                    if (stats.faults !== undefined) {
+                        fields.push("faults = ?");
+                        values.push(stats.faults);
                     }
 
                     values.push(playerId);
@@ -213,8 +213,6 @@ const DatabaseService = {
             );
         });
     },
-
-
 
     /**
      * Supprime un joueur de la base de données.

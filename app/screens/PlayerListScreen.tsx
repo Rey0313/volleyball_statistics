@@ -33,10 +33,12 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.playerPosition}>{item.position}</Text>
                 <View style={styles.statsRow}>
                     <Text style={styles.statText}>
-                        A: {item.attackSuccess}/{item.attacks}
-                        {'  '}S: {item.serviceSuccess}/{item.services}
-                        {'  '}R: {item.receptionSuccess}/{item.receptions}
-                        {'  '}B: {item.blocks}
+                        Attaques: {item.attackSuccess}/{item.attacks} (Échecs: {item.attackFail})
+                        {'  '}Services: {item.serviceSuccess}/{item.services} (Échecs: {item.serviceFail})
+                        {'  '}Réceptions: {item.receptionSuccess}/{item.receptions} (Échecs: {item.receptionFail})
+                        {'  '}Blocks: {item.blockSuccess}/{item.blocks} (Échecs: {item.blockFail})
+                        {'  '}Passe ratées: {item.passesFail}
+                        {'  '}Fautes: {item.faults}
                     </Text>
                 </View>
             </View>
