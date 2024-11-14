@@ -1,7 +1,8 @@
 // /screens/PlayerListScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Button, Alert } from 'react-native';
 import DatabaseService from '../services/DatabaseService';
+import ExcelService from '../services/ExcelService';
 import PlayerStat from '../models/PlayerStat';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types';
@@ -23,6 +24,19 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
         }
     }, [isFocused]);
 
+    // Fonction pour exporter les statistiques vers Excel et partager le fichier
+    const exportAndShare = async () => {
+        try {
+            const path = await ExcelService.exportPlayerStats(players);
+            Alert.alert("Exportation réussie", `Le fichier Excel a été enregistré ici : ${path}`);
+
+            // Partager le fichier sur WhatsApp
+            await ExcelService.shareFile(path);
+        } catch (error) {
+            Alert.alert("Erreur", "Une erreur est survenue lors de l'exportation ou du partage du fichier Excel.");
+        }
+    };
+
     const renderPlayer = ({ item }: { item: PlayerStat }) => (
         <TouchableOpacity
             style={styles.card}
@@ -33,12 +47,10 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.playerPosition}>{item.position}</Text>
                 <View style={styles.statsRow}>
                     <Text style={styles.statText}>
-                        Attaques: {item.attackSuccess}/{item.attacks} (Échecs: {item.attackFail})
-                        {'  '}Services: {item.serviceSuccess}/{item.services} (Échecs: {item.serviceFail})
-                        {'  '}Réceptions: {item.receptionSuccess}/{item.receptions} (Échecs: {item.receptionFail})
-                        {'  '}Blocks: {item.blockSuccess}/{item.blocks} (Échecs: {item.blockFail})
-                        {'  '}Passe ratées: {item.passesFail}
-                        {'  '}Fautes: {item.faults}
+                        Attaques: {item.attackSuccess}
+                        {'  '}Services: {item.serviceSuccess}
+                        {'  '}Réceptions: {item.receptionSuccess}
+                        {'  '}Blocks: {item.blockSuccess}
                     </Text>
                 </View>
             </View>
@@ -47,6 +59,8 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
+            {/* Bouton pour exporter en Excel et partager sur WhatsApp */}
+            <Button title="Exporter et partager sur WhatsApp" onPress={exportAndShare} />
             <FlatList
                 data={players}
                 renderItem={renderPlayer}
