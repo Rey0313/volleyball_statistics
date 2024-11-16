@@ -22,10 +22,20 @@ const ExcelService = {
         const data = players.map(player => ({
             Nom: player.name,
             Poste: player.position,
-            Attaques: `${player.attackSuccess}/${player.attacks}`,
-            Services: `${player.serviceSuccess}/${player.services}`,
+            Attaques: `${player.attacks}`,
+            "Attaques réussies": `${player.attackSuccess}`,
+            "Attaques ratées": `${player.attacks - player.attackSuccess}`,
+            Services: `${player.services}`,
+            "Services réussis": `${player.serviceSuccess}`,
+            "Services ratés": `${player.services - player.serviceSuccess}`,
             Réceptions: player.receptions,
+            "Réceptions réussies": player.receptionSuccess,
+            "Réceptions ratées": player.receptions - player.receptionSuccess,
             Blocs: player.blocks,
+            "Blocs réussis": player.blockSuccess,
+            "Blocs ratés": player.blocks - player.blockSuccess,
+            "Passes ratées": player.passesFail,
+            "Fautes": player.faults
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -64,7 +74,26 @@ const ExcelService = {
         } catch (error) {
             console.error('Erreur lors du partage du fichier :', error);
         }
-    }
+    },
+
+    /**
+     * Supprime un fichier donné après utilisation.
+     * @param filePath Le chemin du fichier à supprimer.
+     */
+    deleteFile: async (filePath: string) => {
+        try {
+            const exists = await RNFS.exists(filePath);
+            if (exists) {
+                await RNFS.unlink(filePath);
+                console.log(`Fichier supprimé avec succès : ${filePath}`);
+            } else {
+                console.warn(`Le fichier n'existe pas : ${filePath}`);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la suppression du fichier :', error);
+            throw error;
+        }
+    },
 };
 
 export default ExcelService;
