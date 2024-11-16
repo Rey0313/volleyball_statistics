@@ -1,12 +1,7 @@
-<<<<<<< HEAD
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Button, Switch, Alert } from 'react-native';
-=======
 // /screens/PlayerListScreen.tsx
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
->>>>>>> ft_btn_remove_last_action
 import DatabaseService from '../services/DatabaseService';
 import ExcelService from '../services/ExcelService';
 import PlayerStat from '../models/PlayerStat';
@@ -123,33 +118,6 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     return allowedStats ? allowedStats.includes(statType) : false;
   };
 
-<<<<<<< HEAD
-  const handleExport = async () => {
-    if (players.length === 0) {
-        Alert.alert("Aucun joueur à exporter", "Veuillez enregistrer les statistiques d'au moins un joueur.");
-        return;
-    }
-
-    try {
-        const path = await ExcelService.exportPlayerStats(selectedPlayers);
-        
-        await ExcelService.shareFile(path);
-        await ExcelService.deleteFile(path);
-        Alert.alert("Exportation réussie", "Le fichier a été partagé avec succès.");
-
-        Alert.alert(
-            "Réinitialiser les statistiques",
-            "Souhaitez-vous réinitialiser les statistiques de tous les joueurs ?",
-            [
-                { text: "Annuler", style: "cancel" },
-                { text: "Oui", onPress: resetPlayerStats },
-            ]
-        );
-    } catch (error) {
-        Alert.alert("Erreur", "Une erreur est survenue lors de l'exportation vers Excel.");
-    }
-};
-=======
     const handleDeleteLastStat = () => {
       DatabaseService.getLastStatGlobal()
         .then(lastStat => {
@@ -215,7 +183,6 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     };
 
 
->>>>>>> ft_btn_remove_last_action
 
   const resetPlayerStats = async () => {
     try {
@@ -228,62 +195,6 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const renderItem = ({ item }: { item: PlayerStat }) => (
-<<<<<<< HEAD
-  <TouchableOpacity
-    style={styles.card}
-    onPress={() => navigation.navigate('StatInput', { playerId: item.id })}
-  >
-    <View style={styles.cardHeader}>
-      <View>
-        <Text style={styles.playerName}>{item.name}</Text>
-        <Text style={styles.playerPosition}>{item.position}</Text>
-      </View>
-      <View style={styles.roundedButton}>
-        <Button
-          title="Supprimer"
-          onPress={() => deletePlayer(item.id)}
-          color="#F44336" // Rouge pour indiquer une action de suppression
-        />
-      </View>
-    </View>
-    <Text style={styles.statsText}>
-      {isStatAvailable('attackSuccess', item.position) && (
-        <>
-          <Text style={styles.statLabelSuccess}>Attaques:</Text> {item.attackSuccess}{'  '}
-        </>
-      )}
-      {isStatAvailable('blockSuccess', item.position) && (
-        <>
-          <Text style={styles.statLabelSuccess}>Blocks:</Text> {item.blockSuccess}{'  '}
-        </>
-      )}
-      {isStatAvailable('serviceSuccess', item.position) && (
-        <>
-          <Text style={styles.statLabelSuccess}>Services:</Text> {item.serviceSuccess}{'  '}
-        </>
-      )}
-      {isStatAvailable('receptionSuccess', item.position) && (
-        <>
-          <Text style={styles.statLabelSuccess}>Réceptions:</Text> {item.receptionSuccess}{'  '}
-        </>
-      )}
-    </Text>
-  </TouchableOpacity>
-);
-
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.roundedButton}>
-        <Button title="Exporter les stats en Excel" onPress={handleExport} />
-      </View>
-
-      <FlatList
-        data={players}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-      />
-=======
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('StatInput', { playerId: item.id })}
@@ -349,15 +260,12 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
       ) : (
         <Text style={styles.noPlayersText}>Aucun joueur n'est créé.</Text>
       )}
->>>>>>> ft_btn_remove_last_action
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 10, backgroundColor: '#f7f7f7' },
-<<<<<<< HEAD
-=======
   topButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -387,29 +295,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
->>>>>>> ft_btn_remove_last_action
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 15,
     marginTop: 10,
-<<<<<<< HEAD
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  playerName: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  playerPosition: { fontSize: 16, color: '#666' },
-  statsText: { fontSize: 16, color: '#555' },
-  statLabelSuccess: { fontWeight: 'bold', color: '#2196F3' },
-  roundedButton: {
-    overflow: 'hidden', // S'assure que le contenu respecte les bordures arrondies
-    borderRadius: 12, // Arrondi des bords
-=======
     marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
@@ -455,7 +345,6 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     marginTop: 20,
->>>>>>> ft_btn_remove_last_action
   },
 });
 
