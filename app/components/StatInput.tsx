@@ -119,11 +119,11 @@ const StatInput: React.FC<Props> = ({ route }) => {
 
     // Définition de la configuration des statistiques par poste
     const positionStatsMap: { [key: string]: string[] } = {
-        'Libéro': ['receptionSuccess', 'receptionFail', 'passesFail'],
-        'R4': ['attackSuccess', 'attackFail', 'blockSuccess', 'blockFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
-        'Pointu': ['attackSuccess', 'attackFail', 'blockSuccess', 'blockFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
-        'Central': ['blockSuccess', 'blockFail', 'attackSuccess', 'attackFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
-        'Passeur': ['blockSuccess', 'blockFail', 'attackSuccess', 'attackFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
+        'libero': ['receptionSuccess', 'receptionFail', 'passesFail'],
+        'r4': ['attackSuccess', 'attackFail', 'blockSuccess', 'blockFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
+        'pointu': ['attackSuccess', 'attackFail', 'blockSuccess', 'blockFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
+        'central': ['blockSuccess', 'blockFail', 'attackSuccess', 'attackFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
+        'passeur': ['blockSuccess', 'blockFail', 'attackSuccess', 'attackFail', 'serviceSuccess', 'serviceFail', 'receptionSuccess', 'receptionFail', 'passesFail', 'faults'],
     };
 
     // Fonction pour vérifier si le bouton doit être affiché pour le poste du joueur

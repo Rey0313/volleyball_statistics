@@ -44,10 +44,10 @@ const CreatePlayerScreen: React.FC<Props> = ({ navigation }) => {
                 placeholder={{ label: 'Sélectionnez un poste', value: '' }}
                 items={[
                     { label: 'R4', value: 'R4' },
-                    { label: 'Pointu', value: 'Pointu' },
-                    { label: 'Central', value: 'Central' },
-                    { label: 'Libéro', value: 'Libéro' },
-                    { label: 'Passeur', value: 'Passeur' },
+                    { label: 'Pointu', value: 'pointu' },
+                    { label: 'Central', value: 'central' },
+                    { label: 'Libéro', value: 'libero' },
+                    { label: 'Passeur', value: 'passeur' },
                 ]}
                 style={{
                     inputAndroid: styles.picker,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     button: {
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#2196F3',
         padding: 15,
         borderRadius: 8,
         alignItems: 'center',

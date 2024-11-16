@@ -24,6 +24,7 @@
     "react-native-screens": "^3.35.0",
     "react-native-share": "^11.0.4",
     "react-native-sqlite-storage": "^6.0.1",
+    "react-native-vector-icons": "^10.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
