@@ -290,6 +290,38 @@ const reverseStatUpdate = (playerId: number, statType: string): Promise<void> =>
 };
 
 /**
+ * Récupère la dernière statistique enregistrée, quel que soit le joueur.
+ * @returns Une promesse qui se résout avec l'objet { id, playerId, statType } de la dernière statistique.
+ */
+const getLastStatGlobal = (): Promise<{ id: number; playerId: number; statType: string } | null> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `SELECT id, playerId, statType FROM stat_history ORDER BY timestamp DESC LIMIT 1;`,
+                    [],
+                    (_, results) => {
+                        if (results.rows.length > 0) {
+                            const row = results.rows.item(0);
+                            resolve({ id: row.id, playerId: row.playerId, statType: row.statType });
+                        } else {
+                            resolve(null);
+                        }
+                    },
+                    (_, error) => {
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            error => {
+                reject(error);
+            }
+        );
+    });
+};
+
+/**
  * Supprime une entrée spécifique de l'historique des statistiques.
  * @param id - L'identifiant de l'entrée de l'historique.
  */
@@ -326,6 +358,39 @@ const deletePlayer = (playerId: number) => {
     });
 };
 
+/**
+ * Réinitialise toutes les statistiques des joueurs dans la base de données.
+ */
+const resetAllPlayerStats = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(tx => {
+            tx.executeSql(
+                `UPDATE players SET
+                    attacks = 0,
+                    attackSuccess = 0,
+                    services = 0,
+                    serviceSuccess = 0,
+                    receptions = 0,
+                    receptionSuccess = 0,
+                    blocks = 0,
+                    blockSuccess = 0,
+                    passesFail = 0,
+                    faults = 0`,
+                [],
+                (_, result) => {
+                    console.log("Statistiques des joueurs réinitialisées avec succès.");
+                    resolve();
+                },
+                (_, error) => {
+                    console.error("Erreur lors de la réinitialisation des statistiques :", error);
+                    reject(error);
+                    return false;
+                }
+            );
+        });
+    });
+};
+
 // Exportation par défaut de l'objet DatabaseService
 const DatabaseService = {
     initDB,
@@ -336,8 +401,10 @@ const DatabaseService = {
     addStatHistory,
     getLastStatForPlayer,
     reverseStatUpdate,
-    deleteStatHistoryEntry,
+    getLastStatGlobal,
     deletePlayer,
+    resetAllPlayerStats,
+    deleteStatHistoryEntry
 };
 
 export default DatabaseService;
