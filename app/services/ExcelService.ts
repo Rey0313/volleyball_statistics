@@ -44,8 +44,10 @@ const ExcelService = {
 
         const path = `${DIRECTORY_PATH}/PlayerStats_${Date.now()}.xlsx`;
 
-        const excelData = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-        await RNFS.writeFile(path, excelData, 'ascii')
+        // Modification ici : utilisation de 'base64'
+        const excelData = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+        await RNFS.writeFile(path, excelData, 'base64')
             .then(() => {
                 console.log('Fichier Excel créé avec succès:', path);
                 return path;

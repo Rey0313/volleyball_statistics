@@ -42,61 +42,74 @@ const StatInput: React.FC<Props> = ({ route }) => {
             // Mettre à jour les statistiques du joueur localement
             let updatedPlayer = { ...player };
 
+            const updatedStats: Partial<PlayerStat> = {};
+
             switch (statType) {
                 case 'attackSuccess':
                     updatedPlayer.attacks += 1;
                     updatedPlayer.attackSuccess += 1;
+                    updatedStats.attacks = updatedPlayer.attacks;
+                    updatedStats.attackSuccess = updatedPlayer.attackSuccess;
                     break;
                 case 'attackFail':
                     updatedPlayer.attacks += 1;
+                    updatedStats.attacks = updatedPlayer.attacks;
                     break;
                 case 'serviceSuccess':
                     updatedPlayer.services += 1;
                     updatedPlayer.serviceSuccess += 1;
+                    updatedStats.services = updatedPlayer.services;
+                    updatedStats.serviceSuccess = updatedPlayer.serviceSuccess;
                     break;
                 case 'serviceFail':
                     updatedPlayer.services += 1;
+                    updatedStats.services = updatedPlayer.services;
                     break;
                 case 'receptionSuccess':
                     updatedPlayer.receptions += 1;
                     updatedPlayer.receptionSuccess += 1;
+                    updatedStats.receptions = updatedPlayer.receptions;
+                    updatedStats.receptionSuccess = updatedPlayer.receptionSuccess;
                     break;
                 case 'receptionFail':
                     updatedPlayer.receptions += 1;
+                    updatedStats.receptions = updatedPlayer.receptions;
                     break;
                 case 'blockSuccess':
                     updatedPlayer.blocks += 1;
                     updatedPlayer.blockSuccess += 1;
+                    updatedStats.blocks = updatedPlayer.blocks;
+                    updatedStats.blockSuccess = updatedPlayer.blockSuccess;
                     break;
                 case 'blockFail':
                     updatedPlayer.blocks += 1;
+                    updatedStats.blocks = updatedPlayer.blocks;
                     break;
                 case 'passesFail':
                     updatedPlayer.passesFail += 1;
+                    updatedStats.passesFail = updatedPlayer.passesFail;
                     break;
                 case 'faults':
                     updatedPlayer.faults += 1;
+                    updatedStats.faults = updatedPlayer.faults;
                     break;
                 default:
                     break;
             }
 
             // Sauvegarder les statistiques mises à jour en base de données
-            DatabaseService.updatePlayerStats(updatedPlayer.id, {
-                attacks: updatedPlayer.attacks,
-                attackSuccess: updatedPlayer.attackSuccess,
-                services: updatedPlayer.services,
-                serviceSuccess: updatedPlayer.serviceSuccess,
-                receptions: updatedPlayer.receptions,
-                receptionSuccess: updatedPlayer.receptionSuccess,
-                blocks: updatedPlayer.blocks,
-                blockSuccess: updatedPlayer.blockSuccess,
-                passesFail: updatedPlayer.passesFail,
-                faults: updatedPlayer.faults
-            })
+            DatabaseService.updatePlayerStats(updatedPlayer.id, updatedStats)
                 .then(() => {
-                    ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
-                    navigation.goBack();
+                    // Enregistrer dans l'historique
+                    DatabaseService.addStatHistory(updatedPlayer.id, statType)
+                        .then(() => {
+                            ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
+                            navigation.goBack();
+                        })
+                        .catch(error => {
+                            console.error("Erreur lors de l'enregistrement de l'historique des stats :", error);
+                            ToastAndroid.show("Erreur lors de l'enregistrement de l'historique des stats", ToastAndroid.SHORT);
+                        });
                 })
                 .catch(error => {
                     console.error("Erreur lors de la sauvegarde des statistiques :", error);
@@ -278,9 +291,7 @@ const styles = StyleSheet.create({
         color: '#555',
         marginBottom: 5,
     },
-    buttonContainer: {
-        // Retirer le flexDirection ici pour permettre aux boutons d'être organisés en lignes
-    },
+    buttonContainer: {},
     buttonRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
