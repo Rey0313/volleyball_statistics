@@ -222,7 +222,75 @@ const DatabaseService = {
         db.transaction(tx => {
             tx.executeSql(`DELETE FROM players WHERE id = ?;`, [playerId]);
         });
-    }
+    },
+
+    /**
+     * Réinitialise toutes les statistiques des joueurs dans la base de données.
+     */
+    resetAllPlayerStats: (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            db.transaction(tx => {
+                tx.executeSql(
+                    `UPDATE players SET 
+                        attacks = 0, 
+                        attackSuccess = 0, 
+                        services = 0, 
+                        serviceSuccess = 0, 
+                        receptions = 0, 
+                        receptionSuccess = 0, 
+                        blocks = 0, 
+                        blockSuccess = 0, 
+                        passesFail = 0, 
+                        faults = 0`,
+                    [],
+                    (_, result) => {
+                        console.log("Statistiques des joueurs réinitialisées avec succès.");
+                        resolve();
+                    },
+                    (_, error) => {
+                        console.error("Erreur lors de la réinitialisation des statistiques :", error);
+                        
+            db.transaction(tx => {
+                tx.executeSql(
+                    `SELECT * FROM players WHERE id=1 group by position;`,
+                    [],
+                    (_, results) => {
+                        const players: PlayerStat[] = [];
+                        for (let i = 0; i < results.rows.length; i++) {
+                            const row = results.rows.item(i);
+                            players.push(
+                                new PlayerStat(
+                                    row.id,
+                                    row.name,
+                                    row.position,
+                                    Number(row.attacks),
+                                    Number(row.attackSuccess),
+                                    Number(row.services),
+                                    Number(row.serviceSuccess),
+                                    Number(row.receptions),
+                                    Number(row.receptionSuccess),
+                                    Number(row.blocks),
+                                    Number(row.blockSuccess),
+                                    Number(row.passesFail),
+                                    Number(row.faults)
+                                )
+                            );
+                        }
+                        console.log(players);
+                    },
+                    (_, error) => {
+                        reject(error);
+                        return false;
+                    }
+                );
+            });
+                        reject(error);
+                        return false;
+                    }
+                );
+            });
+        });
+    },
 };
 
 export default DatabaseService;
