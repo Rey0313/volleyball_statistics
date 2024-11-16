@@ -5,7 +5,7 @@ import { RouteProp, useIsFocused, useNavigation } from '@react-navigation/native
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import DatabaseService from '../services/DatabaseService';
-import PlayerStat from '../models/PlayerStat';
+import { PlayerStat } from '../models/PlayerStat';
 
 type StatInputScreenRouteProp = RouteProp<RootStackParamList, 'StatInput'>;
 type StatInputScreenNavigationProp = StackNavigationProp<RootStackParamList, 'StatInput'>;
@@ -39,79 +39,69 @@ const StatInput: React.FC<Props> = ({ route }) => {
 
     const updateStat = (statType: string) => {
         if (player) {
-            setPlayer(prevPlayer => {
-                if (!prevPlayer) return null;
-                let updatedPlayer = { ...prevPlayer };
+            // Mettre à jour les statistiques du joueur localement
+            let updatedPlayer = { ...player };
 
-                switch (statType) {
-                    case 'attackSuccess':
-                        updatedPlayer.attacks += 1;
-                        updatedPlayer.attackSuccess += 1;
-                        break;
-                    case 'attackFail':
-                        updatedPlayer.attacks += 1;
-                        break;
-                    case 'serviceSuccess':
-                        updatedPlayer.services += 1;
-                        updatedPlayer.serviceSuccess += 1;
-                        break;
-                    case 'serviceFail':
-                        updatedPlayer.services += 1;
-                        break;
-                    case 'receptionSuccess':
-                        updatedPlayer.receptions += 1;
-                        updatedPlayer.receptionSuccess += 1;
-                        break;
-                    case 'receptionFail':
-                        updatedPlayer.receptions += 1;
-                        break;
-                    case 'blockSuccess':
-                        updatedPlayer.blocks += 1;
-                        updatedPlayer.blockSuccess += 1;
-                        break;
-                    case 'blockFail':
-                        updatedPlayer.blocks += 1;
-                        break;
-                    case 'passesFail':
-                        updatedPlayer.passesFail += 1;
-                        break;
-                    case 'faults':
-                        updatedPlayer.faults += 1;
-                        break;
-                    default:
-                        break;
-                }
+            switch (statType) {
+                case 'attackSuccess':
+                    updatedPlayer.attacks += 1;
+                    updatedPlayer.attackSuccess += 1;
+                    break;
+                case 'attackFail':
+                    updatedPlayer.attacks += 1;
+                    break;
+                case 'serviceSuccess':
+                    updatedPlayer.services += 1;
+                    updatedPlayer.serviceSuccess += 1;
+                    break;
+                case 'serviceFail':
+                    updatedPlayer.services += 1;
+                    break;
+                case 'receptionSuccess':
+                    updatedPlayer.receptions += 1;
+                    updatedPlayer.receptionSuccess += 1;
+                    break;
+                case 'receptionFail':
+                    updatedPlayer.receptions += 1;
+                    break;
+                case 'blockSuccess':
+                    updatedPlayer.blocks += 1;
+                    updatedPlayer.blockSuccess += 1;
+                    break;
+                case 'blockFail':
+                    updatedPlayer.blocks += 1;
+                    break;
+                case 'passesFail':
+                    updatedPlayer.passesFail += 1;
+                    break;
+                case 'faults':
+                    updatedPlayer.faults += 1;
+                    break;
+                default:
+                    break;
+            }
 
-                return updatedPlayer;
-            });
-            ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
-        } else {
-            ToastAndroid.show("Erreur : joueur non chargé", ToastAndroid.SHORT);
-        }
-    };
-
-    const saveStats = () => {
-        if (player) {
-            DatabaseService.updatePlayerStats(player.id, {
-                attacks: player.attacks,
-                attackSuccess: player.attackSuccess,
-                services: player.services,
-                serviceSuccess: player.serviceSuccess,
-                receptions: player.receptions,
-                receptionSuccess: player.receptionSuccess,
-                blocks: player.blocks,
-                blockSuccess: player.blockSuccess,
-                passesFail: player.passesFail,
-                faults: player.faults
+            // Sauvegarder les statistiques mises à jour en base de données
+            DatabaseService.updatePlayerStats(updatedPlayer.id, {
+                attacks: updatedPlayer.attacks,
+                attackSuccess: updatedPlayer.attackSuccess,
+                services: updatedPlayer.services,
+                serviceSuccess: updatedPlayer.serviceSuccess,
+                receptions: updatedPlayer.receptions,
+                receptionSuccess: updatedPlayer.receptionSuccess,
+                blocks: updatedPlayer.blocks,
+                blockSuccess: updatedPlayer.blockSuccess,
+                passesFail: updatedPlayer.passesFail,
+                faults: updatedPlayer.faults
             })
-            .then(() => {
-                ToastAndroid.show("Statistiques sauvegardées !", ToastAndroid.SHORT);
-                navigation.navigate('PlayerListScreen');
-            })
-            .catch(error => {
-                console.error("Erreur lors de la sauvegarde des statistiques :", error);
-                ToastAndroid.show("Erreur lors de la sauvegarde des statistiques", ToastAndroid.SHORT);
-            });
+                .then(() => {
+                    ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
+                    navigation.goBack();
+                })
+                .catch(error => {
+                    console.error("Erreur lors de la sauvegarde des statistiques :", error);
+                    ToastAndroid.show("Erreur lors de la sauvegarde des statistiques", ToastAndroid.SHORT);
+                });
         } else {
             ToastAndroid.show("Erreur : joueur non chargé", ToastAndroid.SHORT);
         }
@@ -129,7 +119,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
     // Fonction pour vérifier si le bouton doit être affiché pour le poste du joueur
     const isStatAvailableForPosition = (statType: string) => {
         if (!player) return false;
-        const allowedStats = positionStatsMap[player.position];
+        const allowedStats = positionStatsMap[player.position.toLowerCase()];
         return allowedStats ? allowedStats.includes(statType) : false;
     };
 
@@ -261,15 +251,13 @@ const StatInput: React.FC<Props> = ({ route }) => {
                     )}
                 </View>
             </View>
-            <TouchableOpacity style={styles.saveButton} onPress={saveStats}>
-                <Text style={styles.saveButtonText}>Sauvegarder</Text>
-            </TouchableOpacity>
+            {/* Le bouton "Sauvegarder" est supprimé */}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    // ... styles mis à jour ...
+    // ... vos styles existants ...
     container: {
         flex: 1,
         padding: 20,
