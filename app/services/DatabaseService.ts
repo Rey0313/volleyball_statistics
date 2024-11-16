@@ -4,129 +4,223 @@ import PlayerStat from '../models/PlayerStat';
 
 const db = SQLite.openDatabase({ name: 'playerStats.db', location: 'default' });
 
-const DatabaseService = {
-   initDB: () => {
-       db.transaction(tx => {
-           tx.executeSql(`
-               CREATE TABLE IF NOT EXISTS players (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   name TEXT,
-                   position TEXT,
-                   attacks INTEGER DEFAULT 0,
-                   attackSuccess INTEGER DEFAULT 0,
-                   services INTEGER DEFAULT 0,
-                   serviceSuccess INTEGER DEFAULT 0,
-                   receptions INTEGER DEFAULT 0,
-                   receptionSuccess INTEGER DEFAULT 0,
-                   blocks INTEGER DEFAULT 0,
-                   blockSuccess INTEGER DEFAULT 0,
-                   passesFail INTEGER DEFAULT 0,
-                   faults INTEGER DEFAULT 0
-               );
-           `);
-       });
-   },
+// Fonction pour initialiser la base de données avec la table stat_history
+const initDB = () => {
+    db.transaction(tx => {
+        tx.executeSql(`
+            CREATE TABLE IF NOT EXISTS players (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                position TEXT,
+                attacks INTEGER DEFAULT 0,
+                attackSuccess INTEGER DEFAULT 0,
+                services INTEGER DEFAULT 0,
+                serviceSuccess INTEGER DEFAULT 0,
+                receptions INTEGER DEFAULT 0,
+                receptionSuccess INTEGER DEFAULT 0,
+                blocks INTEGER DEFAULT 0,
+                blockSuccess INTEGER DEFAULT 0,
+                passesFail INTEGER DEFAULT 0,
+                faults INTEGER DEFAULT 0
+            );
+        `);
 
+        tx.executeSql(`
+            CREATE TABLE IF NOT EXISTS stat_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playerId INTEGER,
+                statType TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (playerId) REFERENCES players(id)
+            );
+        `);
+    });
+};
 
-    /**
-     * Ajoute un nouveau joueur dans la base de données.
-     * @param player - Un objet PlayerStat contenant les informations du joueur.
-     */
-    addPlayer: (player: PlayerStat) => {
+/**
+ * Ajoute un nouveau joueur dans la base de données.
+ * @param player - Un objet PlayerStat contenant les informations du joueur.
+ */
+const addPlayer = (player: PlayerStat) => {
+    db.transaction(tx => {
+        tx.executeSql(
+            `INSERT INTO players (name, position) VALUES (?, ?);`,
+            [player.name, player.position],
+            (_, result) => {
+                console.log('Joueur ajouté avec succès');
+            },
+            (_, error) => {
+                console.error("Erreur lors de l'ajout du joueur :", error);
+                return false;
+            }
+        );
+    }, error => {
+        console.error("Erreur de transaction lors de l'ajout du joueur :", error);
+    });
+};
+
+/**
+ * Récupère tous les joueurs de la base de données.
+ * @returns Une promesse qui se résout avec un tableau d'objets PlayerStat.
+ */
+const getAllPlayers = (): Promise<PlayerStat[]> => {
+    return new Promise((resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
-                `INSERT INTO players (name, position) VALUES (?, ?);`,
-                [player.name, player.position],
-                (_, result) => {
-                    console.log('Joueur ajouté avec succès');
+                `SELECT * FROM players;`,
+                [],
+                (_, results) => {
+                    const players: PlayerStat[] = [];
+                    for (let i = 0; i < results.rows.length; i++) {
+                        const row = results.rows.item(i);
+                        players.push(
+                            new PlayerStat(
+                                row.id,
+                                row.name,
+                                row.position,
+                                Number(row.attacks),
+                                Number(row.attackSuccess),
+                                Number(row.services),
+                                Number(row.serviceSuccess),
+                                Number(row.receptions),
+                                Number(row.receptionSuccess),
+                                Number(row.blocks),
+                                Number(row.blockSuccess),
+                                Number(row.passesFail),
+                                Number(row.faults)
+                            )
+                        );
+                    }
+                    resolve(players);
                 },
                 (_, error) => {
-                    console.error("Erreur lors de l'ajout du joueur :", error);
+                    reject(error);
                     return false;
                 }
             );
-        }, error => {
-            console.error("Erreur de transaction lors de l'ajout du joueur :", error);
         });
-    },
+    });
+};
 
+/**
+ * Récupère un joueur par son identifiant.
+ * @param playerId - L'identifiant du joueur.
+ * @returns Une promesse qui se résout avec l'objet PlayerStat du joueur.
+ */
+const getPlayerById = (playerId: number): Promise<PlayerStat | null> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(tx => {
+            tx.executeSql(
+                `SELECT * FROM players WHERE id = ?;`,
+                [playerId],
+                (_, results) => {
+                    if (results.rows.length > 0) {
+                        const row = results.rows.item(0);
+                        resolve(
+                            new PlayerStat(
+                                row.id,
+                                row.name,
+                                row.position,
+                                Number(row.attacks),
+                                Number(row.attackSuccess),
+                                Number(row.services),
+                                Number(row.serviceSuccess),
+                                Number(row.receptions),
+                                Number(row.receptionSuccess),
+                                Number(row.blocks),
+                                Number(row.blockSuccess),
+                                Number(row.passesFail),
+                                Number(row.faults)
+                            )
+                        );
+                    } else {
+                        resolve(null);
+                    }
+                },
+                (_, error) => {
+                    reject(error);
+                    return false;
+                }
+            );
+        });
+    });
+};
 
+/**
+ * Met à jour les statistiques d'un joueur.
+ * @param playerId - L'identifiant du joueur.
+ * @param stats - Un objet partiel contenant les statistiques à mettre à jour.
+ */
+const updatePlayerStats = (playerId: number, stats: Partial<PlayerStat>): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                const fields = Object.keys(stats).map(key => `${key} = ?`).join(", ");
+                const values = Object.values(stats);
+                values.push(playerId);
 
-    /**
-     * Récupère tous les joueurs de la base de données.
-     * @returns Une promesse qui se résout avec un tableau d'objets PlayerStat.
-     */
-    getAllPlayers: (): Promise<PlayerStat[]> => {
-        return new Promise((resolve, reject) => {
-            db.transaction(tx => {
                 tx.executeSql(
-                    `SELECT * FROM players group by position;`,
-                    [],
-                    (_, results) => {
-                        const players: PlayerStat[] = [];
-                        for (let i = 0; i < results.rows.length; i++) {
-                            const row = results.rows.item(i);
-                            players.push(
-                                new PlayerStat(
-                                    row.id,
-                                    row.name,
-                                    row.position,
-                                    Number(row.attacks),
-                                    Number(row.attackSuccess),
-                                    Number(row.services),
-                                    Number(row.serviceSuccess),
-                                    Number(row.receptions),
-                                    Number(row.receptionSuccess),
-                                    Number(row.blocks),
-                                    Number(row.blockSuccess),
-                                    Number(row.passesFail),
-                                    Number(row.faults)
-                                )
-                            );
-                        }
-                        resolve(players);
+                    `UPDATE players SET ${fields} WHERE id = ?;`,
+                    values,
+                    (_, result) => {
+                        resolve();
                     },
                     (_, error) => {
                         reject(error);
                         return false;
                     }
                 );
-            });
-        });
-    },
+            },
+            error => {
+                reject(error);
+            }
+        );
+    });
+};
 
-
-    /**
-     * Récupère un joueur par son identifiant.
-     * @param playerId - L'identifiant du joueur.
-     * @returns Une promesse qui se résout avec l'objet PlayerStat du joueur.
-     */
-    getPlayerById: (playerId: number): Promise<PlayerStat | null> => {
-        return new Promise((resolve, reject) => {
-            db.transaction(tx => {
+/**
+ * Ajoute une entrée dans l'historique des statistiques.
+ * @param playerId - L'identifiant du joueur.
+ * @param statType - Le type de statistique ajoutée.
+ */
+const addStatHistory = (playerId: number, statType: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
                 tx.executeSql(
-                    `SELECT * FROM players WHERE id = ?;`,
+                    `INSERT INTO stat_history (playerId, statType) VALUES (?, ?);`,
+                    [playerId, statType],
+                    (_, result) => {
+                        resolve();
+                    },
+                    (_, error) => {
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            error => {
+                reject(error);
+            }
+        );
+    });
+};
+
+/**
+ * Récupère la dernière statistique ajoutée pour un joueur.
+ * @param playerId - L'identifiant du joueur.
+ */
+const getLastStatForPlayer = (playerId: number): Promise<{ id: number; statType: string } | null> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `SELECT id, statType FROM stat_history WHERE playerId = ? ORDER BY timestamp DESC LIMIT 1;`,
                     [playerId],
                     (_, results) => {
                         if (results.rows.length > 0) {
                             const row = results.rows.item(0);
-                            resolve(
-                                new PlayerStat(
-                                    row.id,
-                                    row.name,
-                                    row.position,
-                                    Number(row.attacks),
-                                    Number(row.attackSuccess),
-                                    Number(row.services),
-                                    Number(row.serviceSuccess),
-                                    Number(row.receptions),
-                                    Number(row.receptionSuccess),
-                                    Number(row.blocks),
-                                    Number(row.blockSuccess),
-                                    Number(row.passesFail),
-                                    Number(row.faults)
-                                )
-                            );
+                            resolve({ id: row.id, statType: row.statType });
                         } else {
                             resolve(null);
                         }
@@ -136,93 +230,114 @@ const DatabaseService = {
                         return false;
                     }
                 );
-            });
-        });
-    },
+            },
+            error => {
+                reject(error);
+            }
+        );
+    });
+};
 
-    /**
-     * Met à jour les statistiques d'un joueur.
-     * @param playerId - L'identifiant du joueur.
-     * @param stats - Un objet partiel contenant les statistiques à mettre à jour.
-     */
-    updatePlayerStats: (playerId: number, stats: Partial<PlayerStat>): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            db.transaction(
-                tx => {
-                    const fields = [];
-                    const values: any[] = [];
-
-                    if (stats.attacks !== undefined) {
-                        fields.push("attacks = ?");
-                        values.push(stats.attacks);
-                    }
-                    if (stats.attackSuccess !== undefined) {
-                        fields.push("attackSuccess = ?");
-                        values.push(stats.attackSuccess);
-                    }
-                    if (stats.services !== undefined) {
-                        fields.push("services = ?");
-                        values.push(stats.services);
-                    }
-                    if (stats.serviceSuccess !== undefined) {
-                        fields.push("serviceSuccess = ?");
-                        values.push(stats.serviceSuccess);
-                    }
-                    if (stats.receptions !== undefined) {
-                        fields.push("receptions = ?");
-                        values.push(stats.receptions);
-                    }
-                    if (stats.receptionSuccess !== undefined) {
-                        fields.push("receptionSuccess = ?");
-                        values.push(stats.receptionSuccess);
-                    }
-                    if (stats.blocks !== undefined) {
-                        fields.push("blocks = ?");
-                        values.push(stats.blocks);
-                    }
-                    if (stats.blockSuccess !== undefined) {
-                        fields.push("blockSuccess = ?");
-                        values.push(stats.blockSuccess);
-                    }
-                    if (stats.passesFail !== undefined) {
-                        fields.push("passesFail = ?");
-                        values.push(stats.passesFail);
-                    }
-                    if (stats.faults !== undefined) {
-                        fields.push("faults = ?");
-                        values.push(stats.faults);
+/**
+ * Annule la dernière statistique ajoutée à un joueur.
+ * @param playerId - L'identifiant du joueur.
+ * @param statType - Le type de statistique à annuler.
+ */
+const reverseStatUpdate = (playerId: number, statType: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        // Récupérer les statistiques actuelles
+        getPlayerById(playerId)
+            .then(player => {
+                if (player) {
+                    // Décrémenter la statistique correspondante
+                    const updatedStats: Partial<PlayerStat> = {};
+                    if (statType === 'attackSuccess') {
+                        updatedStats.attacks = player.attacks - 1;
+                        updatedStats.attackSuccess = player.attackSuccess - 1;
+                    } else if (statType === 'attackFail') {
+                        updatedStats.attacks = player.attacks - 1;
+                    } else if (statType === 'serviceSuccess') {
+                        updatedStats.services = player.services - 1;
+                        updatedStats.serviceSuccess = player.serviceSuccess - 1;
+                    } else if (statType === 'serviceFail') {
+                        updatedStats.services = player.services - 1;
+                    } else if (statType === 'receptionSuccess') {
+                        updatedStats.receptions = player.receptions - 1;
+                        updatedStats.receptionSuccess = player.receptionSuccess - 1;
+                    } else if (statType === 'receptionFail') {
+                        updatedStats.receptions = player.receptions - 1;
+                    } else if (statType === 'blockSuccess') {
+                        updatedStats.blocks = player.blocks - 1;
+                        updatedStats.blockSuccess = player.blockSuccess - 1;
+                    } else if (statType === 'blockFail') {
+                        updatedStats.blocks = player.blocks - 1;
+                    } else if (statType === 'passesFail') {
+                        updatedStats.passesFail = player.passesFail - 1;
+                    } else if (statType === 'faults') {
+                        updatedStats.faults = player.faults - 1;
                     }
 
-                    values.push(playerId);
-
-                    tx.executeSql(
-                        `UPDATE players SET ${fields.join(", ")} WHERE id = ?;`,
-                        values,
-                        (_, result) => {
-                            resolve();
-                        },
-                        (_, error) => {
-                            reject(error);
-                            return false;
-                        }
-                    );
-                },
-                error => {
-                    reject(error);
+                    // Mettre à jour les statistiques
+                    updatePlayerStats(playerId, updatedStats)
+                        .then(() => resolve())
+                        .catch(error => reject(error));
+                } else {
+                    reject(new Error('Joueur non trouvé'));
                 }
-            );
-        });
-    },
+            })
+            .catch(error => reject(error));
+    });
+};
 
-    /**
-     * Supprime un joueur de la base de données.
-     * @param playerId - L'identifiant du joueur à supprimer.
-     */
-    deletePlayer: (playerId: number) => {
-        db.transaction(tx => {
-            tx.executeSql(`DELETE FROM players WHERE id = ?;`, [playerId]);
-        });
-    }
+/**
+ * Supprime une entrée spécifique de l'historique des statistiques.
+ * @param id - L'identifiant de l'entrée de l'historique.
+ */
+const deleteStatHistoryEntry = (id: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `DELETE FROM stat_history WHERE id = ?;`,
+                    [id],
+                    (_, result) => {
+                        resolve();
+                    },
+                    (_, error) => {
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            error => {
+                reject(error);
+            }
+        );
+    });
+};
+
+/**
+ * Supprime un joueur de la base de données.
+ * @param playerId - L'identifiant du joueur à supprimer.
+ */
+const deletePlayer = (playerId: number) => {
+    db.transaction(tx => {
+        tx.executeSql(`DELETE FROM players WHERE id = ?;`, [playerId]);
+    });
+};
+
+// Exportation par défaut de l'objet DatabaseService
+const DatabaseService = {
+    initDB,
+    addPlayer,
+    getAllPlayers,
+    getPlayerById,
+    updatePlayerStats,
+    addStatHistory,
+    getLastStatForPlayer,
+    reverseStatUpdate,
+    deleteStatHistoryEntry,
+    deletePlayer,
 };
 
 export default DatabaseService;
