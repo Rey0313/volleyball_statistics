@@ -1,7 +1,16 @@
 // /screens/PlayerListScreen.tsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SectionList,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  SafeAreaView,
+} from 'react-native';
 import DatabaseService from '../services/DatabaseService';
 import ExcelService from '../services/ExcelService';
 import PlayerStat from '../models/PlayerStat';
@@ -9,7 +18,10 @@ import { useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 
-type PlayerListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PlayerListScreen'>;
+type PlayerListScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'PlayerListScreen'
+>;
 
 interface Props {
   navigation: PlayerListScreenNavigationProp;
@@ -17,14 +29,14 @@ interface Props {
 
 const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
   const [players, setPlayers] = useState<PlayerStat[]>([]);
-  const [selectedPlayers, setSelectedPlayers] = useState<PlayerStat[]>([]);
+  const [searchText, setSearchText] = useState('');
   const isFocused = useIsFocused();
 
   useEffect(() => {
     if (isFocused) {
       DatabaseService.getAllPlayers()
         .then(setPlayers)
-        .catch(error => {
+        .catch((error) => {
           console.error('Erreur lors du chargement des joueurs :', error);
         });
     }
@@ -51,9 +63,15 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
             try {
               await DatabaseService.deletePlayer(playerId);
               await loadPlayers(); // Recharge les joueurs après suppression
-              Alert.alert('Joueur supprimé', 'Le joueur a été supprimé avec succès.');
+              Alert.alert(
+                'Joueur supprimé',
+                'Le joueur a été supprimé avec succès.'
+              );
             } catch (error) {
-              Alert.alert('Erreur', 'Une erreur est survenue lors de la suppression du joueur.');
+              Alert.alert(
+                'Erreur',
+                'Une erreur est survenue lors de la suppression du joueur.'
+              );
             }
           },
         },
@@ -118,79 +136,99 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     return allowedStats ? allowedStats.includes(statType) : false;
   };
 
-    const handleDeleteLastStat = () => {
-      DatabaseService.getLastStatGlobal()
-        .then(lastStat => {
-          if (lastStat) {
-            // Annuler la statistique
-            DatabaseService.reverseStatUpdate(lastStat.playerId, lastStat.statType)
-              .then(() => {
-                // Supprimer l'entrée de l'historique
-                DatabaseService.deleteStatHistoryEntry(lastStat.id)
-                  .then(() => {
-                    // Mettre à jour l'état local
-                    DatabaseService.getAllPlayers()
-                      .then(fetchedPlayers => {
-                        setPlayers(fetchedPlayers);
-                      })
-                      .catch(error => {
-                        console.error('Erreur lors du rechargement des joueurs :', error);
-                      });
-                    Alert.alert('Succès', `La dernière statistique a été supprimée.`);
-                  })
-                  .catch(error => {
-                    console.error("Erreur lors de la suppression de l'historique des stats :", error);
-                  });
-              })
-              .catch(error => {
-                console.error("Erreur lors de l'annulation de la statistique :", error);
-              });
-          } else {
-            Alert.alert('Erreur', 'Aucune statistique à supprimer.');
-          }
-        })
-        .catch(error => {
-          console.error('Erreur lors de la récupération de la dernière statistique :', error);
-        });
-    };
-
-
-    const handleExport = async () => {
-        if (players.length === 0) {
-            Alert.alert("Aucun joueur à exporter", "Veuillez enregistrer les statistiques d'au moins un joueur.");
-            return;
+  const handleDeleteLastStat = () => {
+    DatabaseService.getLastStatGlobal()
+      .then((lastStat) => {
+        if (lastStat) {
+          // Annuler la statistique
+          DatabaseService.reverseStatUpdate(lastStat.playerId, lastStat.statType)
+            .then(() => {
+              // Supprimer l'entrée de l'historique
+              DatabaseService.deleteStatHistoryEntry(lastStat.id)
+                .then(() => {
+                  // Mettre à jour l'état local
+                  DatabaseService.getAllPlayers()
+                    .then((fetchedPlayers) => {
+                      setPlayers(fetchedPlayers);
+                    })
+                    .catch((error) => {
+                      console.error(
+                        'Erreur lors du rechargement des joueurs :',
+                        error
+                      );
+                    });
+                  Alert.alert('Succès', `La dernière statistique a été supprimée.`);
+                })
+                .catch((error) => {
+                  console.error(
+                    "Erreur lors de la suppression de l'historique des stats :",
+                    error
+                  );
+                });
+            })
+            .catch((error) => {
+              console.error("Erreur lors de l'annulation de la statistique :", error);
+            });
+        } else {
+          Alert.alert('Erreur', 'Aucune statistique à supprimer.');
         }
+      })
+      .catch((error) => {
+        console.error(
+          'Erreur lors de la récupération de la dernière statistique :',
+          error
+        );
+      });
+  };
 
-        try {
-            const path = await ExcelService.exportPlayerStats(players);
+  const handleExport = async () => {
+    if (players.length === 0) {
+      Alert.alert(
+        'Aucun joueur à exporter',
+        "Veuillez enregistrer les statistiques d'au moins un joueur."
+      );
+      return;
+    }
 
-            await ExcelService.shareFile(path);
-            await ExcelService.deleteFile(path);
-            Alert.alert("Exportation réussie", "Le fichier a été partagé avec succès.");
+    try {
+      const path = await ExcelService.exportPlayerStats(players);
 
-            Alert.alert(
-                "Réinitialiser les statistiques",
-                "Souhaitez-vous réinitialiser les statistiques de tous les joueurs ?",
-                [
-                    { text: "Annuler", style: "cancel" },
-                    { text: "Oui", onPress: resetPlayerStats },
-                ]
-            );
-        } catch (error) {
-            console.error('Erreur lors de l\'exportation vers Excel :', error);
-            Alert.alert("Erreur", `Une erreur est survenue lors de l'exportation vers Excel : ${error.message || error.toString()}`);
-        }
-    };
+      await ExcelService.shareFile(path);
+      await ExcelService.deleteFile(path);
+      Alert.alert('Exportation réussie', 'Le fichier a été partagé avec succès.');
 
-
+      Alert.alert(
+        'Réinitialiser les statistiques',
+        'Souhaitez-vous réinitialiser les statistiques de tous les joueurs ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Oui', onPress: resetPlayerStats },
+        ]
+      );
+    } catch (error) {
+      console.error("Erreur lors de l'exportation vers Excel :", error);
+      Alert.alert(
+        'Erreur',
+        `Une erreur est survenue lors de l'exportation vers Excel : ${
+          error.message || error.toString()
+        }`
+      );
+    }
+  };
 
   const resetPlayerStats = async () => {
     try {
       await DatabaseService.resetAllPlayerStats();
       DatabaseService.getAllPlayers().then(setPlayers);
-      Alert.alert('Statistiques réinitialisées', 'Les statistiques de tous les joueurs ont été réinitialisées.');
+      Alert.alert(
+        'Statistiques réinitialisées',
+        'Les statistiques de tous les joueurs ont été réinitialisées.'
+      );
     } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la réinitialisation des statistiques.');
+      Alert.alert(
+        'Erreur',
+        'Une erreur est survenue lors de la réinitialisation des statistiques.'
+      );
     }
   };
 
@@ -218,88 +256,136 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
       <Text style={styles.statsText}>
         {isStatAvailable('attackSuccess', item.position) && (
           <>
-            <Text style={styles.statLabelSuccess}>Attaques:</Text> {item.attackSuccess}{'  '}
+            <Text style={styles.statLabelSuccess}>Attaques:</Text>{' '}
+            {item.attackSuccess}{'  '}
           </>
         )}
         {isStatAvailable('blockSuccess', item.position) && (
           <>
-            <Text style={styles.statLabelSuccess}>Blocks:</Text> {item.blockSuccess}{'  '}
+            <Text style={styles.statLabelSuccess}>Blocks:</Text>{' '}
+            {item.blockSuccess}{'  '}
           </>
         )}
         {isStatAvailable('serviceSuccess', item.position) && (
           <>
-            <Text style={styles.statLabelSuccess}>Services:</Text> {item.serviceSuccess}{'  '}
+            <Text style={styles.statLabelSuccess}>Services:</Text>{' '}
+            {item.serviceSuccess}{'  '}
           </>
         )}
         {isStatAvailable('receptionSuccess', item.position) && (
           <>
-            <Text style={styles.statLabelSuccess}>Réceptions:</Text> {item.receptionSuccess}{'  '}
+            <Text style={styles.statLabelSuccess}>Réceptions:</Text>{' '}
+            {item.receptionSuccess}{'  '}
           </>
         )}
       </Text>
     </TouchableOpacity>
   );
 
+  const getSections = () => {
+    const filteredPlayers = !searchText
+      ? players
+      : players.filter((player) =>
+          player.name.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+    // Regrouper les joueurs par poste
+    const groupedPlayers = filteredPlayers.reduce(
+      (sections: any[], player) => {
+        const position = player.position;
+        const existingSection = sections.find(
+          (section) => section.title === position
+        );
+        if (existingSection) {
+          existingSection.data.push(player);
+        } else {
+          sections.push({
+            title: position,
+            data: [player],
+          });
+        }
+        return sections;
+      },
+      []
+    );
+    return groupedPlayers;
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.topButtons}>
-        <TouchableOpacity style={styles.buttonCancelLastStat} onPress={handleDeleteLastStat}>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Barre de recherche */}
+      <View style={styles.header}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un joueur"
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+      </View>
+
+      {/* Liste des joueurs */}
+      {players.length > 0 ? (
+        <SectionList
+          sections={getSections()}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionHeader}>{title}</Text>
+          )}
+          contentContainerStyle={styles.listContent}
+        />
+      ) : (
+        <Text style={styles.noPlayersText}>Aucun joueur n'est créé.</Text>
+      )}
+
+      {/* Footer avec les boutons */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.buttonCancelLastStat}
+          onPress={handleDeleteLastStat}
+        >
           <Text style={styles.buttonText}>Annuler dernière stat</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.buttonExport} onPress={handleExport}>
           <Text style={styles.buttonText}>Exporter les stats en Excel</Text>
         </TouchableOpacity>
       </View>
-
-      {players.length > 0 ? (
-        <FlatList
-          data={players}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-        />
-      ) : (
-        <Text style={styles.noPlayersText}>Aucun joueur n'est créé.</Text>
-      )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: '#f7f7f7' },
-  topButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  buttonCancelLastStat: {
-    flex: 1,
-    backgroundColor: '#ff8633',
+  safeArea: { flex: 1, backgroundColor: '#f7f7f7' },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f7f7f7',
     padding: 10,
-    marginHorizontal: 5,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center', // Ajouté pour centrer verticalement le contenu
+    zIndex: 1,
   },
-  buttonExport: {
-    flex: 1,
-    backgroundColor: '#2196F3',
+  searchInput: {
     padding: 10,
-    marginHorizontal: 5,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center', // Ajouté pour centrer verticalement le contenu
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 8,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
+  listContent: {
+    paddingTop: 70, // Hauteur du header
+    paddingBottom: 70, // Hauteur du footer
+    paddingHorizontal: 10,
+  },
+  sectionHeader: {
+    backgroundColor: '#eee',
+    padding: 5,
     fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 18,
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 15,
-    marginTop: 10,
     marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
@@ -310,11 +396,11 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between', // Ajouté pour espacer les éléments
     marginBottom: 10,
   },
   playerInfo: {
-    maxWidth: '70%',
-    marginRight: 10,
+    flex: 1, // Permet au bloc d'occuper tout l'espace disponible
   },
   playerName: {
     fontSize: 20,
@@ -332,6 +418,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 5,
+    // Aucune marge pour aligner à droite
   },
   deleteButtonText: {
     color: '#fff',
@@ -345,6 +432,41 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     marginTop: 20,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f7f7f7',
+    padding: 10,
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderColor: '#ccc',
+  },
+  buttonCancelLastStat: {
+    flex: 1,
+    backgroundColor: '#ff8633',
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonExport: {
+    flex: 1,
+    backgroundColor: '#2196F3',
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 
