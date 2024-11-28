@@ -522,11 +522,11 @@ const calculatePerformanceScore = async (
 
     // Obtenir le score max et min possibles pour normalisation
     const { maxScore, minScore } = getMaxMinScoresForPosition(
-        position,
-        positionWeights,
-        includePointsPlayed,
-        player.pointsPlayed
-    );
+    player,
+    positionWeights,
+    includePointsPlayed
+);
+
 
     // Normalisation du score sur une échelle de 0 à 10
     const normalizedScore =
@@ -548,27 +548,55 @@ const calculatePerformanceScore = async (
 
 // Calcule les scores maximum et minimum possibles pour un poste donné
 const getMaxMinScoresForPosition = (
-    position: string,
+    player: PlayerStat,
     positionWeights: { [key: string]: number },
-    includePointsPlayed: boolean,
-    pointsPlayed: number
+    includePointsPlayed: boolean
 ): { maxScore: number; minScore: number } => {
     let maxScore = 0;
     let minScore = 0;
 
-    // Supposons que le joueur peut avoir 1 unité de chaque statistique pour simplifier
+    // Parcourir les statistiques du joueur
     for (const stat in positionWeights) {
         const weight = positionWeights[stat];
+        const statValue = player[stat as keyof PlayerStat] || 0;
+        console.log("🚀 ~ stat:", stat)
 
-        // Meilleur cas
-        if (weight > 0) {
-            maxScore += weight * (includePointsPlayed && pointsPlayed > 0 ? 1 / pointsPlayed : 1);
-        }
+        // Vérifier si la statistique est une réussite, un échec ou un total d'actions
+        if (stat.endsWith('Success') || stat.endsWith('Point')) {
+            // Score maximum : supposer que le joueur a réussi toutes les actions correspondantes
+            maxScore += statValue * weight;
+        } else if (stat.endsWith('Fail') || stat === 'faults' || stat === 'passesFail') {
+            // Score minimum : supposer que le joueur a échoué toutes les actions correspondantes
+            minScore += statValue * weight;
+        } else {
+            // Pour les statistiques totales (comme 'attacks', 'services', etc.)
+            // Nous devons déterminer le score maximum et minimum en fonction des succès et des échecs
 
-        // Pire cas
-        if (weight < 0) {
-            minScore += weight * (includePointsPlayed && pointsPlayed > 0 ? 1 / pointsPlayed : 1);
+            // Obtenir les statistiques de réussite et d'échec correspondantes
+            const successStat = stat + 'Success';
+            const failStat = stat + 'Fail';
+
+            const successValue = player[successStat as keyof PlayerStat] || 0;
+            const failValue = player[failStat as keyof PlayerStat] || 0;
+
+            // Score maximum : toutes les actions réussies
+            if (weight > 0) {
+                maxScore += (successValue + failValue) * weight;
+            }
+            
+            // Score minimum : toutes les actions échouées
+            if (weight < 0) {
+                minScore += (successValue + failValue) * weight;
+            }
         }
+        console.log("🚀 ~ minScore:", minScore)
+        console.log("🚀 ~ maxScore:", maxScore)
+    }
+
+    // Normaliser par points joués si nécessaire
+    if (includePointsPlayed && player.pointsPlayed > 0) {
+        maxScore = maxScore / player.pointsPlayed;
+        minScore = minScore / player.pointsPlayed;
     }
 
     return { maxScore, minScore };
