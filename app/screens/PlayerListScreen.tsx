@@ -1,6 +1,6 @@
 // /screens/PlayerListScreen.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Alert,
   TextInput,
   SafeAreaView,
+  Modal,
+  FlatList,
+  Switch,
 } from 'react-native';
 import DatabaseService from '../services/DatabaseService';
 import ExcelService from '../services/ExcelService';
@@ -17,6 +20,7 @@ import PlayerStat from '../models/PlayerStat';
 import { useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
+import { OnCourtPlayersContext } from '../contexts/OnCourtPlayersContext';
 
 type PlayerListScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -28,24 +32,51 @@ interface Props {
 }
 
 const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
-  const [players, setPlayers] = useState<PlayerStat[]>([]);
+  const [players, setPlayers] = useState<
+    (PlayerStat & { normalizedScore: number; rawScore: number })[]
+  >([]);
   const [searchText, setSearchText] = useState('');
+  const [includePointsPlayed, setIncludePointsPlayed] = useState(true);
   const isFocused = useIsFocused();
+
+  // Utilisation du contexte pour les joueurs sur le terrain
+  const { onCourtPlayers, setOnCourtPlayers } = useContext(OnCourtPlayersContext);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isFocused) {
-      DatabaseService.getAllPlayers()
-        .then(setPlayers)
-        .catch((error) => {
-          console.error('Erreur lors du chargement des joueurs :', error);
-        });
+      loadPlayers();
     }
-  }, [isFocused]);
+  }, [isFocused, includePointsPlayed]);
 
   const loadPlayers = async () => {
     try {
       const allPlayers = await DatabaseService.getAllPlayers();
-      setPlayers(allPlayers);
+
+      // Calculer les scores pour chaque joueur
+      const playersWithScores = await Promise.all(
+        allPlayers.map(async (player) => {
+          const scoreData = await DatabaseService.calculatePerformanceScore(
+            player,
+            includePointsPlayed
+          );
+          return { ...player, ...scoreData };
+        })
+      );
+
+      setPlayers(playersWithScores);
+
+      // Initialiser les joueurs sur le terrain si ce n'est pas déjà fait
+      if (allPlayers.length >= 6 && onCourtPlayers.length === 0) {
+        setOnCourtPlayers(allPlayers.slice(0, 6));
+      } else {
+        // Mettre à jour les statistiques des joueurs sur le terrain
+        const updatedOnCourtPlayers = allPlayers.filter((player) =>
+          onCourtPlayers.some((onCourtPlayer) => onCourtPlayer.id === player.id)
+        );
+        setOnCourtPlayers(updatedOnCourtPlayers);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des joueurs :', error);
     }
@@ -63,10 +94,13 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
             try {
               await DatabaseService.deletePlayer(playerId);
               await loadPlayers(); // Recharge les joueurs après suppression
-              Alert.alert(
-                'Joueur supprimé',
-                'Le joueur a été supprimé avec succès.'
+
+              // Mettre à jour les joueurs sur le terrain
+              setOnCourtPlayers((prevOnCourtPlayers) =>
+                prevOnCourtPlayers.filter((player) => player.id !== playerId)
               );
+
+              Alert.alert('Joueur supprimé', 'Le joueur a été supprimé avec succès.');
             } catch (error) {
               Alert.alert(
                 'Erreur',
@@ -81,54 +115,66 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
 
   const isStatAvailable = (statType: string, position: string) => {
     const positionStatsMap: { [key: string]: string[] } = {
-      libero: ['receptionSuccess', 'receptionFail', 'passesFail'],
+      libero: ['receptionSuccess', 'receptionFail', 'passesFail', 'pointsPlayed'],
       r4: [
         'attackSuccess',
         'attackFail',
         'blockSuccess',
         'blockFail',
+        'blockPoint',
         'serviceSuccess',
         'serviceFail',
+        'servicePoint',
         'receptionSuccess',
         'receptionFail',
         'passesFail',
         'faults',
+        'pointsPlayed',
       ],
       pointu: [
         'attackSuccess',
         'attackFail',
         'blockSuccess',
         'blockFail',
+        'blockPoint',
         'serviceSuccess',
         'serviceFail',
+        'servicePoint',
         'receptionSuccess',
         'receptionFail',
         'passesFail',
         'faults',
+        'pointsPlayed',
       ],
       central: [
         'blockSuccess',
         'blockFail',
+        'blockPoint',
         'attackSuccess',
         'attackFail',
         'serviceSuccess',
         'serviceFail',
+        'servicePoint',
         'receptionSuccess',
         'receptionFail',
         'passesFail',
         'faults',
+        'pointsPlayed',
       ],
       passeur: [
         'blockSuccess',
         'blockFail',
+        'blockPoint',
         'attackSuccess',
         'attackFail',
         'serviceSuccess',
         'serviceFail',
+        'servicePoint',
         'receptionSuccess',
         'receptionFail',
         'passesFail',
         'faults',
+        'pointsPlayed',
       ],
     };
 
@@ -140,23 +186,29 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     DatabaseService.getLastStatGlobal()
       .then((lastStat) => {
         if (lastStat) {
-          // Annuler la statistique
+          // Annuler la statistique pour le joueur concerné
           DatabaseService.reverseStatUpdate(lastStat.playerId, lastStat.statType)
+            .then(() => {
+              // Vérifier si 'pointsPlayed' doit être décrémenté
+              const actionsWithoutPointsPlayed = ['serviceSuccess', 'receptionSuccess', 'blockSuccess'];
+              const shouldDecrementPointsPlayed = !actionsWithoutPointsPlayed.includes(lastStat.statType);
+
+              if (shouldDecrementPointsPlayed) {
+                // Décrémenter 'pointsPlayed' pour tous les joueurs sur le terrain
+                const decrementPromises = onCourtPlayers.map((player) => {
+                  const newPointsPlayed = Math.max(0, player.pointsPlayed - 1);
+                  return DatabaseService.updatePlayerStats(player.id, {
+                    pointsPlayed: newPointsPlayed,
+                  });
+                });
+
+                Promise.all(decrementPromises)
             .then(() => {
               // Supprimer l'entrée de l'historique
               DatabaseService.deleteStatHistoryEntry(lastStat.id)
                 .then(() => {
                   // Mettre à jour l'état local
-                  DatabaseService.getAllPlayers()
-                    .then((fetchedPlayers) => {
-                      setPlayers(fetchedPlayers);
-                    })
-                    .catch((error) => {
-                      console.error(
-                        'Erreur lors du rechargement des joueurs :',
-                        error
-                      );
-                    });
+                  loadPlayers();
                   Alert.alert('Succès', `La dernière statistique a été supprimée.`);
                 })
                 .catch((error) => {
@@ -165,6 +217,28 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
                     error
                   );
                 });
+                  })
+                  .catch((error) => {
+                    console.error(
+                      "Erreur lors de la décrémentation de 'pointsPlayed' pour les joueurs sur le terrain :",
+                      error
+                    );
+                  });
+              } else {
+                // Si 'pointsPlayed' ne doit pas être décrémenté
+                DatabaseService.deleteStatHistoryEntry(lastStat.id)
+                  .then(() => {
+                    // Mettre à jour l'état local
+                    loadPlayers();
+                    Alert.alert('Succès', `La dernière statistique a été supprimée.`);
+                  })
+                  .catch((error) => {
+                    console.error(
+                      "Erreur lors de la suppression de l'historique des stats :",
+                      error
+                    );
+                  });
+              }
             })
             .catch((error) => {
               console.error("Erreur lors de l'annulation de la statistique :", error);
@@ -219,7 +293,7 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
   const resetPlayerStats = async () => {
     try {
       await DatabaseService.resetAllPlayerStats();
-      DatabaseService.getAllPlayers().then(setPlayers);
+      loadPlayers();
       Alert.alert(
         'Statistiques réinitialisées',
         'Les statistiques de tous les joueurs ont été réinitialisées.'
@@ -232,55 +306,106 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const renderItem = ({ item }: { item: PlayerStat }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('StatInput', { playerId: item.id })}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.playerInfo}>
-          <Text style={styles.playerName} numberOfLines={1} ellipsizeMode="tail">
-            {item.name}
-          </Text>
-          <Text style={styles.playerPosition} numberOfLines={1} ellipsizeMode="tail">
-            {item.position}
-          </Text>
+  // Fonction pour ouvrir la modale de remplacement
+  const openSubstitutionModal = (playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setIsModalVisible(true);
+  };
+
+  // Fonction pour obtenir les joueurs disponibles pour le remplacement
+  const availablePlayers = () => {
+    return players.filter(
+      (player) => !onCourtPlayers.some((onCourtPlayer) => onCourtPlayer.id === player.id)
+    );
+  };
+
+  // Fonction pour gérer le remplacement
+  const handleSubstitution = (newPlayer: PlayerStat) => {
+    if (selectedPlayerId !== null) {
+      const updatedOnCourtPlayers = onCourtPlayers.map((player) =>
+        player.id === selectedPlayerId ? newPlayer : player
+      );
+      setOnCourtPlayers(updatedOnCourtPlayers);
+      setIsModalVisible(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: PlayerStat }) => {
+    const isOnCourt = onCourtPlayers.some((player) => player.id === item.id);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.card,
+          isOnCourt && styles.onCourtCard, // Bordure verte si le joueur est sur le terrain
+        ]}
+        onPress={() => navigation.navigate('StatInput', { playerId: item.id })}
+      >
+        {isOnCourt && (
+          <View style={styles.onCourtLabelContainer}>
+            <Text style={styles.onCourtLabel}>En jeu</Text>
+          </View>
+        )}
+        <View style={styles.cardHeader}>
+          <View style={styles.playerInfo}>
+            <Text style={styles.playerName} numberOfLines={1} ellipsizeMode="tail">
+              {item.name}
+            </Text>
+            <Text style={styles.playerPosition} numberOfLines={1} ellipsizeMode="tail">
+              {item.position}
+            </Text>
+          </View>
+
+          {isOnCourt ? (
+            <TouchableOpacity
+              onPress={() => openSubstitutionModal(item.id)}
+              style={styles.substituteButton}
+            >
+              <Text style={styles.substituteButtonText}>Remplacer</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => deletePlayer(item.id)}
+              style={styles.deleteButton}
+            >
+              <Text style={styles.deleteButtonText}>Supprimer</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity
-          onPress={() => deletePlayer(item.id)}
-          style={styles.deleteButton}
-        >
-          <Text style={styles.deleteButtonText}>Supprimer</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.statsText}>
-        {isStatAvailable('attackSuccess', item.position) && (
-          <>
-            <Text style={styles.statLabelSuccess}>Attaques:</Text>{' '}
-            {item.attackSuccess}{'  '}
-          </>
-        )}
-        {isStatAvailable('blockSuccess', item.position) && (
-          <>
-            <Text style={styles.statLabelSuccess}>Blocks:</Text>{' '}
-            {item.blockSuccess}{'  '}
-          </>
-        )}
-        {isStatAvailable('serviceSuccess', item.position) && (
-          <>
-            <Text style={styles.statLabelSuccess}>Services:</Text>{' '}
-            {item.serviceSuccess}{'  '}
-          </>
-        )}
-        {isStatAvailable('receptionSuccess', item.position) && (
-          <>
-            <Text style={styles.statLabelSuccess}>Réceptions:</Text>{' '}
-            {item.receptionSuccess}{'  '}
-          </>
-        )}
-      </Text>
-    </TouchableOpacity>
-  );
+        <Text style={styles.statsText}>
+          {isStatAvailable('pointsPlayed', item.position) && (
+            <>
+              <Text style={styles.statLabelSuccess}>Points joués:</Text>{' '}
+              {item.pointsPlayed}{'  '}
+            </>
+          )}
+          {isStatAvailable('attackSuccess', item.position) && (
+            <>
+              <Text style={styles.statLabelSuccess}>Attaques:</Text>{' '}
+              {item.attackSuccess}{'  '}
+            </>
+          )}
+          {isStatAvailable('blockSuccess', item.position) && (
+            <>
+              <Text style={styles.statLabelSuccess}>Blocks:</Text> {item.blockSuccess}{'  '}
+            </>
+          )}
+          {isStatAvailable('serviceSuccess', item.position) && (
+            <>
+              <Text style={styles.statLabelSuccess}>Services:</Text>{' '}
+              {item.serviceSuccess}{'  '}
+            </>
+          )}
+          {isStatAvailable('receptionSuccess', item.position) && (
+            <>
+              <Text style={styles.statLabelSuccess}>Réceptions:</Text>{' '}
+              {item.receptionSuccess}{'  '}
+            </>
+          )}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const getSections = () => {
     const filteredPlayers = !searchText
@@ -313,16 +438,6 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Barre de recherche */}
-      <View style={styles.header}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher un joueur"
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-      </View>
-
       {/* Liste des joueurs */}
       {players.length > 0 ? (
         <SectionList
@@ -340,43 +455,77 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Footer avec les boutons */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.buttonCancelLastStat}
-          onPress={handleDeleteLastStat}
-        >
-          <Text style={styles.buttonText}>Annuler dernière stat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.buttonExport} onPress={handleExport}>
-          <Text style={styles.buttonText}>Exporter les stats en Excel</Text>
-        </TouchableOpacity>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un joueur"
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+        <View style={styles.footerButtons}>
+          <TouchableOpacity
+            style={styles.buttonCancelLastStat}
+            onPress={handleDeleteLastStat}
+          >
+            <Text style={styles.buttonText}>Annuler dernière stat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.buttonExport} onPress={handleExport}>
+            <Text style={styles.buttonText}>Exporter les stats en Excel</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Modale de remplacement */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sélectionnez un joueur</Text>
+            <FlatList
+              data={availablePlayers()}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => handleSubstitution(item)}
+                  style={styles.playerItem}
+                >
+                  <Text>
+                    {item.name} ({item.position})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              onPress={() => setIsModalVisible(false)}
+              style={styles.closeButton}
+            >
+              <Text style={styles.buttonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f7f7f7' },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f7f7f7',
-    padding: 10,
-    zIndex: 1,
-  },
   searchInput: {
     padding: 10,
+    marginBottom: 10,
     borderColor: 'gray',
     borderWidth: 1,
     borderRadius: 8,
   },
   listContent: {
-    paddingTop: 70, // Hauteur du header
-    paddingBottom: 70, // Hauteur du footer
+    paddingBottom: 140, // Hauteur du footer
     paddingHorizontal: 10,
   },
   sectionHeader: {
+    marginBottom: 10,
     backgroundColor: '#eee',
     padding: 5,
     fontWeight: 'bold',
@@ -393,10 +542,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 5,
   },
+  onCourtCard: {
+    borderWidth: 2,
+    borderColor: '#0b2951', // Bordure verte pour les joueurs sur le terrain
+  },
+  onCourtLabelContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: '#0b2951',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 8,
+  },
+  onCourtLabel: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Ajouté pour espacer les éléments
+    justifyContent: 'space-between', // Espacer les éléments
     marginBottom: 10,
   },
   playerInfo: {
@@ -418,9 +586,19 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 5,
-    // Aucune marge pour aligner à droite
   },
   deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  substituteButton: {
+    backgroundColor: '#FFA500',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  substituteButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
@@ -438,17 +616,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#f7f7f7',
+    backgroundColor: 'white',
     padding: 10,
-    flexDirection: 'row',
     borderTopWidth: 1,
     borderColor: '#ccc',
+  },
+  footerButtons: {
+    flexDirection: 'row',
   },
   buttonCancelLastStat: {
     flex: 1,
     backgroundColor: '#ff8633',
     padding: 15,
-    marginHorizontal: 5,
+    marginRight: 5,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -457,7 +637,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#2196F3',
     padding: 15,
-    marginHorizontal: 5,
+    marginLeft: 5,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -467,6 +647,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  // Styles pour la modale
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    margin: 20,
+    padding: 20,
+    borderRadius: 8,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  playerItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  closeButton: {
+    backgroundColor: '#2196F3',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
   },
 });
 

@@ -7,6 +7,7 @@ import PlayerListScreen from './app/screens/PlayerListScreen';
 import StatInput from './app/components/StatInput';
 import CreatePlayerScreen from './app/screens/CreatePlayerScreen';
 import DatabaseService from './app/services/DatabaseService';
+import { OnCourtPlayersProvider } from './app/contexts/OnCourtPlayersContext';
 
 type RootStackParamList = {
     HomeScreen: undefined;
@@ -22,14 +23,16 @@ const App: React.FC = () => {
         DatabaseService.initDB();
     }, []);
     return (
-        <NavigationContainer>
-            <Stack.Navigator initialRouteName="HomeScreen">
-                <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'Accueil' }}/>
-                <Stack.Screen name="PlayerListScreen" component={PlayerListScreen} options={{ title: 'Liste des Joueurs' }}/>
-                <Stack.Screen name="StatInput" component={StatInput} options={{ title: 'Statistiques' }}/>
-                <Stack.Screen name="CreatePlayerScreen" component={CreatePlayerScreen} options={{ title: 'Création des joueurs' }}/>
-            </Stack.Navigator>
-        </NavigationContainer>
+        <OnCourtPlayersProvider>
+            <NavigationContainer>
+                <Stack.Navigator initialRouteName="HomeScreen">
+                    <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'Accueil' }}/>
+                    <Stack.Screen name="PlayerListScreen" component={PlayerListScreen} options={{ title: 'Liste des Joueurs' }}/>
+                    <Stack.Screen name="StatInput" component={StatInput} options={{ title: 'Statistiques' }}/>
+                    <Stack.Screen name="CreatePlayerScreen" component={CreatePlayerScreen} options={{ title: 'Création des joueurs' }}/>
+                </Stack.Navigator>
+            </NavigationContainer>
+        </OnCourtPlayersProvider>
     );
 };
 
