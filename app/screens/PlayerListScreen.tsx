@@ -275,7 +275,7 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
         'Réinitialiser les statistiques',
         'Souhaitez-vous réinitialiser les statistiques de tous les joueurs ?',
         [
-          { text: 'Annuler', style: 'cancel' },
+          { text: 'Non', style: 'cancel' },
           { text: 'Oui', onPress: resetPlayerStats },
         ]
       );
