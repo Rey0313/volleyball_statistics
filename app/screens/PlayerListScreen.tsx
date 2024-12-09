@@ -1,6 +1,6 @@
 // /screens/PlayerListScreen.tsx
 
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
   SafeAreaView,
   Modal,
   FlatList,
-  Switch,
 } from 'react-native';
 import DatabaseService from '../services/DatabaseService';
 import ExcelService from '../services/ExcelService';
@@ -32,14 +31,11 @@ interface Props {
 }
 
 const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
-  const [players, setPlayers] = useState<
-    (PlayerStat & { normalizedScore: number; rawScore: number })[]
-  >([]);
+  const [players, setPlayers] = useState<PlayerStat[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [includePointsPlayed, setIncludePointsPlayed] = useState(true);
-  const isFocused = useIsFocused();
+    const isFocused = useIsFocused();
 
-  // Utilisation du contexte pour les joueurs sur le terrain
+  // Contexte des joueurs sur le terrain
   const { onCourtPlayers, setOnCourtPlayers } = useContext(OnCourtPlayersContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
@@ -48,24 +44,12 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
     if (isFocused) {
       loadPlayers();
     }
-  }, [isFocused, includePointsPlayed]);
+  }, [isFocused]);
 
   const loadPlayers = async () => {
     try {
       const allPlayers = await DatabaseService.getAllPlayers();
-
-      // Calculer les scores pour chaque joueur
-      const playersWithScores = await Promise.all(
-        allPlayers.map(async (player) => {
-          const scoreData = await DatabaseService.calculatePerformanceScore(
-            player,
-            includePointsPlayed
-          );
-          return { ...player, ...scoreData };
-        })
-      );
-
-      setPlayers(playersWithScores);
+      setPlayers(allPlayers);
 
       // Initialiser les joueurs sur le terrain si ce n'est pas déjà fait
       if (allPlayers.length >= 6 && onCourtPlayers.length === 0) {
@@ -190,7 +174,7 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
           DatabaseService.reverseStatUpdate(lastStat.playerId, lastStat.statType)
             .then(() => {
               // Vérifier si 'pointsPlayed' doit être décrémenté
-              const actionsWithoutPointsPlayed = ['serviceSuccess', 'receptionSuccess', 'blockSuccess'];
+              const actionsWithoutPointsPlayed = ['attackSuccess', 'serviceSuccess', 'receptionSuccess', 'blockSuccess'];
               const shouldDecrementPointsPlayed = !actionsWithoutPointsPlayed.includes(lastStat.statType);
 
               if (shouldDecrementPointsPlayed) {

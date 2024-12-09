@@ -18,6 +18,7 @@ export default class PlayerStat {
     passesFail: number;
     faults: number;
     pointsPlayed: number;
+    performance: number;
 
     constructor(
         id: number,
@@ -36,7 +37,8 @@ export default class PlayerStat {
         blockPoint: number = 0,
         passesFail: number = 0,
         faults: number = 0,
-        pointsPlayed: number = 0
+        pointsPlayed: number = 0,
+        performance: number = 0
     ) {
         this.id = id;
         this.name = name;
@@ -55,6 +57,7 @@ export default class PlayerStat {
         this.passesFail = passesFail;
         this.faults = faults;
         this.pointsPlayed = pointsPlayed;
+        this.performance = performance;
     }
 
     // Méthodes pour calculer les échecs

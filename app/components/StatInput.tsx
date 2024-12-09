@@ -1,14 +1,7 @@
 // /components/StatInput.tsx
 
 import React, { useState, useEffect, useContext } from 'react';
-import {
-  View,
-  Text,
-  ToastAndroid,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, ToastAndroid, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { RouteProp, useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
@@ -25,7 +18,7 @@ interface Props {
 
 const StatInput: React.FC<Props> = ({ route }) => {
   const { playerId } = route.params;
-  const [player, setPlayer] = useState<PlayerStat & { normalizedScore: number; rawScore: number } | null>(null);
+  const [player, setPlayer] = useState<PlayerStat | null>(null);
   const isFocused = useIsFocused();
   const navigation = useNavigation<StatInputScreenNavigationProp>();
   const { onCourtPlayers } = useContext(OnCourtPlayersContext);
@@ -40,8 +33,8 @@ const StatInput: React.FC<Props> = ({ route }) => {
     try {
       const playerData = await DatabaseService.getPlayerById(playerId);
       if (playerData) {
-        const scoreData = await DatabaseService.calculatePerformanceScore(playerData, true);
-        setPlayer({ ...playerData, ...scoreData });
+        // PlayerData a déjà une performance à jour car DatabaseService la met à jour après calcul
+        setPlayer(playerData);
       } else {
         ToastAndroid.show('Joueur non trouvé', ToastAndroid.SHORT);
       }
@@ -51,7 +44,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
     }
   };
 
-  const updateStat = (statType: string) => {
+  const updateStat = async (statType: string) => {
     if (player) {
       const updatedStatsList: Promise<void>[] = [];
 
@@ -63,7 +56,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
 
       if (shouldIncrementPointsPlayed) {
         // Incrémenter pointsPlayed pour tous les joueurs sur le terrain
-        onCourtPlayers.forEach((courtPlayer) => {
+        for (const courtPlayer of onCourtPlayers) {
           const updatedPointsPlayed = courtPlayer.pointsPlayed + 1;
 
           // Mettre à jour en base de données
@@ -85,10 +78,11 @@ const StatInput: React.FC<Props> = ({ route }) => {
         });
       }
 
-      // Attendre que les mises à jour de pointsPlayed soient terminées si nécessaire
-      Promise.all(updatedStatsList)
-        .then(async () => {
-          // Mettre à jour les statistiques spécifiques du joueur actuel
+      try {
+        // Attendre la mise à jour de pointsPlayed si nécessaire
+        await Promise.all(updatedStatsList);
+
+        // Mise à jour de la stat spécifique du joueur courant
           let updatedPlayer = { ...player };
           const updatedStats: Partial<PlayerStat> = {};
 
@@ -169,40 +163,23 @@ const StatInput: React.FC<Props> = ({ route }) => {
               break;
           }
 
-          // Sauvegarder les statistiques mises à jour en base de données pour le joueur actuel
-          DatabaseService.updatePlayerStats(updatedPlayer.id, updatedStats)
-            .then(() => {
-              // Enregistrer dans l'historique
-              DatabaseService.addStatHistory(updatedPlayer.id, statType)
-                .then(async () => {
+        // Sauvegarde des stats mises à jour
+        await DatabaseService.updatePlayerStats(updatedPlayer.id, updatedStats);
+
+        // Récupérer le joueur mis à jour et recalculer la performance
+        const refreshedPlayer = await DatabaseService.getPlayerById(updatedPlayer.id);
+        if (refreshedPlayer) {
+          setPlayer(refreshedPlayer);
+        }
+
                   ToastAndroid.show('Statistiques mises à jour !', ToastAndroid.SHORT);
-                  // Recalculer le score
-                  const scoreData = await DatabaseService.calculatePerformanceScore(updatedPlayer, true);
-                  setPlayer({ ...updatedPlayer, ...scoreData }); // Mettre à jour l'état local avec le score
                   navigation.goBack();
-                })
-                .catch((error) => {
-                  console.error(
-                    "Erreur lors de l'enregistrement de l'historique des stats :",
-                    error
-                  );
-                  ToastAndroid.show(
-                    "Erreur lors de l'enregistrement de l'historique des stats",
-                    ToastAndroid.SHORT
-                  );
-                });
-            })
-            .catch((error) => {
-              console.error('Erreur lors de la sauvegarde des statistiques :', error);
-              ToastAndroid.show(
-                'Erreur lors de la sauvegarde des statistiques',
-                ToastAndroid.SHORT
-              );
-            });
-        })
-        .catch((error) => {
-          console.error('Erreur lors de la mise à jour des points joués :', error);
-        });
+
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour des statistiques :', error);
+        ToastAndroid.show('Erreur lors de la mise à jour des statistiques', ToastAndroid.SHORT);
+      }
+
     } else {
       ToastAndroid.show('Erreur : joueur non chargé', ToastAndroid.SHORT);
     }
@@ -378,15 +355,17 @@ const StatInput: React.FC<Props> = ({ route }) => {
           <View style={styles.statsCard}>
             <View style={styles.statRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Score :</Text>
-              </View>
-              <Text style={styles.statValue}>{player.normalizedScore.toFixed(2)} / 10</Text>
-            </View>
-            <View style={styles.statRow}>
-              <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Points joués</Text>
               </View>
               <Text style={styles.statValue}>{player.pointsPlayed}</Text>
+            </View>
+
+            {/* Affichage de la performance */}
+            <View style={styles.statRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Performance</Text>
+              </View>
+              <Text style={styles.statValue}>{player.performance.toFixed(2)} / 10</Text>
             </View>
 
           {isStatAvailableForPosition('attackSuccess') && (

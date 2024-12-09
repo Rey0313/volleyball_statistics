@@ -27,7 +27,8 @@ const initDB = () => {
                 blockPoint INTEGER DEFAULT 0,
                 passesFail INTEGER DEFAULT 0,
                 faults INTEGER DEFAULT 0,
-                pointsPlayed INTEGER DEFAULT 0
+                pointsPlayed INTEGER DEFAULT 0,
+                performance REAL DEFAULT 0
             );
         `);
 
@@ -47,13 +48,12 @@ const initDB = () => {
             `PRAGMA table_info(players);`,
             [],
             (_, result) => {
-                const existingColumns = [];
+                const existingColumns: string[] = [];
                 for (let i = 0; i < result.rows.length; i++) {
                     existingColumns.push(result.rows.item(i).name);
                 }
 
-                // Définition des colonnes attendues avec leur type
-                const columnDefinitions = {
+                const columnDefinitions: { [key: string]: string } = {
                     'name': 'TEXT',
                     'position': 'TEXT',
                     'attacks': 'INTEGER DEFAULT 0',
@@ -69,7 +69,8 @@ const initDB = () => {
                     'blockPoint': 'INTEGER DEFAULT 0',
                     'passesFail': 'INTEGER DEFAULT 0',
                     'faults': 'INTEGER DEFAULT 0',
-                    'pointsPlayed': 'INTEGER DEFAULT 0'
+                    'pointsPlayed': 'INTEGER DEFAULT 0',
+                    'performance': 'REAL DEFAULT 0'
                 };
 
                 // Pour chaque colonne attendue, vérifier si elle existe, sinon l'ajouter
@@ -124,17 +125,16 @@ const addPlayer = (player: PlayerStat): Promise<void> => {
 
 // Récupère tous les joueurs de la base de données
 const getAllPlayers = (): Promise<PlayerStat[]> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
                 `SELECT * FROM players;`,
                 [],
-                (_, results) => {
+                async (_, results) => {
                     const players: PlayerStat[] = [];
                     for (let i = 0; i < results.rows.length; i++) {
                         const row = results.rows.item(i);
-                        players.push(
-                            new PlayerStat(
+                        const player = new PlayerStat(
                                 row.id,
                                 row.name,
                                 row.position,
@@ -151,9 +151,18 @@ const getAllPlayers = (): Promise<PlayerStat[]> => {
                                 Number(row.blockPoint),
                                 Number(row.passesFail),
                                 Number(row.faults),
-                                Number(row.pointsPlayed)
-                            )
+                            Number(row.pointsPlayed),
+                            Number(row.performance)
                         );
+
+                        // Calculer la performance et mettre à jour dans la BDD
+                        const { performance } = await calculatePerformanceScore(player);
+                        if (performance !== player.performance) {
+                            player.performance = performance;
+                            await updatePlayerStats(player.id, { performance });
+                        }
+
+                        players.push(player);
                     }
                     resolve(players);
                 },
@@ -173,11 +182,10 @@ const getPlayerById = (playerId: number): Promise<PlayerStat | null> => {
             tx.executeSql(
                 `SELECT * FROM players WHERE id = ?;`,
                 [playerId],
-                (_, results) => {
+                async (_, results) => {
                     if (results.rows.length > 0) {
                         const row = results.rows.item(0);
-                        resolve(
-                            new PlayerStat(
+                        const player = new PlayerStat(
                                 row.id,
                                 row.name,
                                 row.position,
@@ -194,9 +202,18 @@ const getPlayerById = (playerId: number): Promise<PlayerStat | null> => {
                                 Number(row.blockPoint),
                                 Number(row.passesFail),
                                 Number(row.faults),
-                                Number(row.pointsPlayed)
-                            )
+                            Number(row.pointsPlayed),
+                            Number(row.performance)
                         );
+
+                        // Calculer la performance et mettre à jour dans la BDD si nécessaire
+                        const { performance } = await calculatePerformanceScore(player);
+                        if (performance !== player.performance) {
+                            player.performance = performance;
+                            await updatePlayerStats(player.id, { performance });
+                        }
+
+                        resolve(player);
                     } else {
                         resolve(null);
                     }
@@ -308,16 +325,29 @@ const reverseStatUpdate = (playerId: number, statType: string): Promise<void> =>
                     } else if (statType === 'faults') {
                         updatedStats.faults = Math.max(0, player.faults - 1);
                     }
-                    // Vérifier si pointsPlayed doit être décrémenté
-                    const actionsWithoutPointsPlayed = ['attackSuccess', 'serviceSuccess', 'receptionSuccess', 'blockSuccess'];
+
+                    const actionsWithoutPointsPlayed = [
+                        'attackSuccess',
+                        'serviceSuccess',
+                        'receptionSuccess',
+                        'blockSuccess'
+                    ];
                     if (!actionsWithoutPointsPlayed.includes(statType)) {
                         updatedStats.pointsPlayed = Math.max(0, player.pointsPlayed - 1);
                     }
 
-                    // Mettre à jour les statistiques
-                    updatePlayerStats(playerId, updatedStats)
-                        .then(() => resolve())
-                        .catch(error => reject(error));
+                    await updatePlayerStats(playerId, updatedStats);
+
+                    // Recalculer la performance et la mettre à jour
+                    const updatedPlayer = await getPlayerById(playerId);
+                    if (updatedPlayer) {
+                        const { performance } = await calculatePerformanceScore(updatedPlayer);
+                        if (performance !== updatedPlayer.performance) {
+                            await updatePlayerStats(playerId, { performance });
+                        }
+                    }
+
+                    resolve();
                 } else {
                     reject(new Error('Joueur non trouvé'));
                 }
@@ -415,7 +445,8 @@ const resetAllPlayerStats = (): Promise<void> => {
                     blockPoint = 0,
                     passesFail = 0,
                     faults = 0,
-                    pointsPlayed = 0
+                    pointsPlayed = 0,
+                    performance = 0
                 `,
                 [],
                 (_, result) => {
