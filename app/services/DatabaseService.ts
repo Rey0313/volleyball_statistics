@@ -100,7 +100,7 @@ const initDB = () => {
 
 
 // Ajoute un nouveau joueur dans la base de données
-const addPlayer = (player: PlayerStat): Promise<void> => {
+const addPlayer = async (player: PlayerStat): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
@@ -124,7 +124,7 @@ const addPlayer = (player: PlayerStat): Promise<void> => {
 };
 
 // Récupère tous les joueurs de la base de données
-const getAllPlayers = (): Promise<PlayerStat[]> => {
+const getAllPlayers = async (): Promise<PlayerStat[]> => {
     return new Promise(async (resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
@@ -157,6 +157,7 @@ const getAllPlayers = (): Promise<PlayerStat[]> => {
 
                         // Calculer la performance et mettre à jour dans la BDD
                         const { performance } = await calculatePerformanceScore(player);
+                        console.log('Ancienne performance:', player.performance, 'Nouvelle performance:', performance);
                         if (performance !== player.performance) {
                             player.performance = performance;
                             await updatePlayerStats(player.id, { performance });
@@ -176,7 +177,7 @@ const getAllPlayers = (): Promise<PlayerStat[]> => {
 };
 
 // Récupère un joueur par son identifiant
-const getPlayerById = (playerId: number): Promise<PlayerStat | null> => {
+const getPlayerById = async (playerId: number): Promise<PlayerStat | null> => {
     return new Promise((resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
@@ -228,7 +229,7 @@ const getPlayerById = (playerId: number): Promise<PlayerStat | null> => {
 };
 
 // Met à jour les statistiques d'un joueur
-const updatePlayerStats = (playerId: number, stats: Partial<PlayerStat>): Promise<void> => {
+const updatePlayerStats = async (playerId: number, stats: Partial<PlayerStat>): Promise<void> => {
     return new Promise((resolve, reject) => {
         db.transaction(
             tx => {
@@ -256,7 +257,7 @@ const updatePlayerStats = (playerId: number, stats: Partial<PlayerStat>): Promis
 };
 
 // Ajoute une entrée dans l'historique des statistiques
-const addStatHistory = (playerId: number, statType: string): Promise<void> => {
+const addStatHistory = async (playerId: number, statType: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         db.transaction(
             tx => {
@@ -280,85 +281,79 @@ const addStatHistory = (playerId: number, statType: string): Promise<void> => {
 };
 
 // Annule la dernière statistique ajoutée à un joueur
-const reverseStatUpdate = (playerId: number, statType: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        // Récupérer les statistiques actuelles
-        getPlayerById(playerId)
-            .then(player => {
-                if (player) {
-                    // Décrémenter la statistique correspondante
-                    const updatedStats: Partial<PlayerStat> = {};
-                    if (statType === 'attackSuccess') {
-                        updatedStats.attacks = Math.max(0, player.attacks - 1);
-                        updatedStats.attackSuccess = Math.max(0, player.attackSuccess - 1);
-                    } else if (statType === 'attackFail') {
-                        updatedStats.attacks = Math.max(0, player.attacks - 1);
-                    } else if (statType === 'attackPoint') {
-                        updatedStats.attacks = Math.max(0, player.attacks - 1);
-                        updatedStats.attackSuccess = Math.max(0, player.attackSuccess - 1);
-                        updatedStats.attackPoint = Math.max(0, player.attackPoint - 1);
-                    } else if (statType === 'serviceSuccess') {
-                        updatedStats.services = Math.max(0, player.services - 1);
-                        updatedStats.serviceSuccess = Math.max(0, player.serviceSuccess - 1);
-                    } else if (statType === 'serviceFail') {
-                        updatedStats.services = Math.max(0, player.services - 1);
-                    } else if (statType === 'servicePoint') {
-                        updatedStats.services = Math.max(0, player.services - 1);
-                        updatedStats.serviceSuccess = Math.max(0, player.serviceSuccess - 1);
-                        updatedStats.servicePoint = Math.max(0, player.servicePoint - 1);
-                    } else if (statType === 'receptionSuccess') {
-                        updatedStats.receptions = Math.max(0, player.receptions - 1);
-                        updatedStats.receptionSuccess = Math.max(0, player.receptionSuccess - 1);
-                    } else if (statType === 'receptionFail') {
-                        updatedStats.receptions = Math.max(0, player.receptions - 1);
-                    } else if (statType === 'blockSuccess') {
-                        updatedStats.blocks = Math.max(0, player.blocks - 1);
-                        updatedStats.blockSuccess = Math.max(0, player.blockSuccess - 1);
-                    } else if (statType === 'blockFail') {
-                        updatedStats.blocks = Math.max(0, player.blocks - 1);
-                    } else if (statType === 'blockPoint') {
-                        updatedStats.blocks = Math.max(0, player.blocks - 1);
-                        updatedStats.blockSuccess = Math.max(0, player.blockSuccess - 1);
-                        updatedStats.blockPoint = Math.max(0, player.blockPoint - 1);
-                    } else if (statType === 'passesFail') {
-                        updatedStats.passesFail = Math.max(0, player.passesFail - 1);
-                    } else if (statType === 'faults') {
-                        updatedStats.faults = Math.max(0, player.faults - 1);
-                    }
+const reverseStatUpdate = async (playerId: number, statType: string): Promise<void> => {
+    const player = await getPlayerById(playerId);
+    if (!player) {
+        throw new Error('Joueur non trouvé');
+    }
 
-                    const actionsWithoutPointsPlayed = [
-                        'attackSuccess',
-                        'serviceSuccess',
-                        'receptionSuccess',
-                        'blockSuccess'
-                    ];
-                    if (!actionsWithoutPointsPlayed.includes(statType)) {
-                        updatedStats.pointsPlayed = Math.max(0, player.pointsPlayed - 1);
-                    }
+    // Décrémenter la statistique correspondante
+    const updatedStats: Partial<PlayerStat> = {};
+    if (statType === 'attackSuccess') {
+        updatedStats.attacks = Math.max(0, player.attacks - 1);
+        updatedStats.attackSuccess = Math.max(0, player.attackSuccess - 1);
+    } else if (statType === 'attackFail') {
+        updatedStats.attacks = Math.max(0, player.attacks - 1);
+    } else if (statType === 'attackPoint') {
+        updatedStats.attacks = Math.max(0, player.attacks - 1);
+        updatedStats.attackSuccess = Math.max(0, player.attackSuccess - 1);
+        updatedStats.attackPoint = Math.max(0, player.attackPoint - 1);
+    } else if (statType === 'serviceSuccess') {
+        updatedStats.services = Math.max(0, player.services - 1);
+        updatedStats.serviceSuccess = Math.max(0, player.serviceSuccess - 1);
+    } else if (statType === 'serviceFail') {
+        updatedStats.services = Math.max(0, player.services - 1);
+    } else if (statType === 'servicePoint') {
+        updatedStats.services = Math.max(0, player.services - 1);
+        updatedStats.serviceSuccess = Math.max(0, player.serviceSuccess - 1);
+        updatedStats.servicePoint = Math.max(0, player.servicePoint - 1);
+    } else if (statType === 'receptionSuccess') {
+        updatedStats.receptions = Math.max(0, player.receptions - 1);
+        updatedStats.receptionSuccess = Math.max(0, player.receptionSuccess - 1);
+    } else if (statType === 'receptionFail') {
+        updatedStats.receptions = Math.max(0, player.receptions - 1);
+    } else if (statType === 'blockSuccess') {
+        updatedStats.blocks = Math.max(0, player.blocks - 1);
+        updatedStats.blockSuccess = Math.max(0, player.blockSuccess - 1);
+    } else if (statType === 'blockFail') {
+        updatedStats.blocks = Math.max(0, player.blocks - 1);
+    } else if (statType === 'blockPoint') {
+        updatedStats.blocks = Math.max(0, player.blocks - 1);
+        updatedStats.blockSuccess = Math.max(0, player.blockSuccess - 1);
+        updatedStats.blockPoint = Math.max(0, player.blockPoint - 1);
+    } else if (statType === 'passesFail') {
+        updatedStats.passesFail = Math.max(0, player.passesFail - 1);
+    } else if (statType === 'faults') {
+        updatedStats.faults = Math.max(0, player.faults - 1);
+    }
 
-                    await updatePlayerStats(playerId, updatedStats);
+    const actionsWithoutPointsPlayed = [
+        'attackSuccess',
+        'serviceSuccess',
+        'receptionSuccess',
+        'blockSuccess'
+    ];
+    if (!actionsWithoutPointsPlayed.includes(statType)) {
+        updatedStats.pointsPlayed = Math.max(0, player.pointsPlayed - 1);
+    }
 
-                    // Recalculer la performance et la mettre à jour
-                    const updatedPlayer = await getPlayerById(playerId);
-                    if (updatedPlayer) {
-                        const { performance } = await calculatePerformanceScore(updatedPlayer);
-                        if (performance !== updatedPlayer.performance) {
-                            await updatePlayerStats(playerId, { performance });
-                        }
-                    }
+    await updatePlayerStats(playerId, updatedStats);
 
-                    resolve();
-                } else {
-                    reject(new Error('Joueur non trouvé'));
-                }
-            })
-            .catch(error => reject(error));
-    });
+    // Recalculer la performance et la mettre à jour
+    const updatedPlayer = await getPlayerById(playerId);
+    if (updatedPlayer) {
+        const { performance } = await calculatePerformanceScore(updatedPlayer);
+        if (performance !== updatedPlayer.performance) {
+            await updatePlayerStats(playerId, { performance });
+        }
+    }
+
+    // Aucune promesse explicite n'est créée, la fonction async gère cela automatiquement
 };
 
 
 // Récupère la dernière statistique enregistrée, quel que soit le joueur
-const getLastStatGlobal = (): Promise<{ id: number; playerId: number; statType: string } | null> => {
+const getLastStatGlobal = async (): Promise<{ id: number; playerId: number; statType: string } | null> => {
     return new Promise((resolve, reject) => {
         db.transaction(
             tx => {
@@ -387,7 +382,7 @@ const getLastStatGlobal = (): Promise<{ id: number; playerId: number; statType: 
 };
 
 // Supprime une entrée spécifique de l'historique des statistiques
-const deleteStatHistoryEntry = (id: number): Promise<void> => {
+const deleteStatHistoryEntry = async (id: number): Promise<void> => {
     return new Promise((resolve, reject) => {
         db.transaction(
             tx => {
@@ -411,7 +406,7 @@ const deleteStatHistoryEntry = (id: number): Promise<void> => {
 };
 
 // Supprime un joueur de la base de données
-const deletePlayer = (playerId: number): Promise<void> => {
+const deletePlayer = async (playerId: number): Promise<void> => {
     return new Promise((resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(`DELETE FROM players WHERE id = ?;`, [playerId],
@@ -427,7 +422,7 @@ const deletePlayer = (playerId: number): Promise<void> => {
 };
 
 // Réinitialise toutes les statistiques des joueurs dans la base de données
-const resetAllPlayerStats = (): Promise<void> => {
+const resetAllPlayerStats = async (): Promise<void> => {
     return new Promise((resolve, reject) => {
         db.transaction(tx => {
             tx.executeSql(
@@ -472,6 +467,7 @@ const calculatePerformanceScore = async (
     normalizedScore: number;
     maxScore: number;
     minScore: number;
+    performance: clampedScore
 }> => {
     const weights = {
         // Pondérations mises à jour
@@ -552,11 +548,12 @@ const calculatePerformanceScore = async (
     }
 
     // Obtenir le score max et min possibles pour normalisation
-    const { maxScore, minScore } = getMaxMinScoresForPosition(
-    player,
-    positionWeights,
-    includePointsPlayed
-);
+    const { maxScore, minScore } = await getMaxMinScoresForPosition(
+       player,
+       positionWeights,
+       includePointsPlayed
+    );
+
 
 
     // Normalisation du score sur une échelle de 0 à 10
@@ -568,17 +565,20 @@ const calculatePerformanceScore = async (
     // S'assurer que le score est entre 0 et 10
     const clampedScore = Math.max(0, Math.min(10, normalizedScore));
 
+    console.log('AYAGBSYOBAJYVBAHOKJBVOTUYKLUJB. NHHBU : ', clampedScore);
+
     return {
         rawScore: scoreToNormalize,
         normalizedScore: clampedScore,
         maxScore,
         minScore,
+        performance: clampedScore
     };
 };
 
 
 // Calcule les scores maximum et minimum possibles pour un poste donné
-const getMaxMinScoresForPosition = (
+const getMaxMinScoresForPosition = async (
     player: PlayerStat,
     positionWeights: { [key: string]: number },
     includePointsPlayed: boolean

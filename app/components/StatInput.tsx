@@ -75,7 +75,7 @@ const StatInput: React.FC<Props> = ({ route }) => {
             });
 
           updatedStatsList.push(updatePromise);
-        });
+        }
       }
 
       try {
@@ -365,7 +365,9 @@ const StatInput: React.FC<Props> = ({ route }) => {
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Performance</Text>
               </View>
-              <Text style={styles.statValue}>{player.performance.toFixed(2)} / 10</Text>
+              <Text style={styles.statValue}>
+                {player.performance ? player.performance.toFixed(2) : 'N/A'} / 10
+              </Text>
             </View>
 
           {isStatAvailableForPosition('attackSuccess') && (

@@ -26,8 +26,8 @@ const ExcelService = {
 
         // Définition des en-têtes à deux niveaux
         const header = [
-            ["Noms", "Poste", "Services", "", "", "", "Attaques", "", "", "", "Réceptions", "", "", "Blocs", "", "", "", "Passes", "", "Fautes", "Points joués", "Performance"],
-            ["", "", "Points", "Réussis", "Ratés", "Total", "Points", "Réussis", "Ratés", "Total", "Réussis", "Ratés", "Total", "Points", "Réussis", "Ratés", "Total", "Ratées", "", "", ""]
+            ["Noms", "Poste", "Services", "", "", "", "Attaques", "", "", "", "Réceptions", "", "", "Blocs", "", "", "", "Passes", "Fautes", "Points joués", "Performance"],
+            ["", "", "Points", "Réussis", "Ratés", "Total", "Points", "Réussies", "Ratées", "Total", "Réussies", "Ratées", "Total", "Points", "Réussis", "Ratés", "Total", "Ratées", "", "", ""]
         ];
 
         // Insérer les en-têtes dans la feuille
@@ -46,25 +46,25 @@ const ExcelService = {
         const data = players.map(player => ([
             player.name,
             player.position,
-            player.serviceSuccess,
+            player.servicePoint,
             player.serviceSuccess,
             player.services - player.serviceSuccess,
             player.services,
-            player.attackSuccess,
+            player.attackPoint,
             player.attackSuccess,
             player.attacks - player.attackSuccess,
             player.attacks,
             player.receptionSuccess,
             player.receptions - player.receptionSuccess,
             player.receptions,
-            player.blockSuccess,
+            player.blockPoint,
             player.blockSuccess,
             player.blocks - player.blockSuccess,
             player.blocks,
             player.passesFail,
             player.faults,
             player.pointsPlayed || "",
-            player.performance || ""
+            player.performance.toFixed(2) || ""
         ]));
 
         XLSX.utils.sheet_add_aoa(ws, data, { origin: "A3" });
@@ -118,21 +118,29 @@ const ExcelService = {
 
     // Nouvelle fonction pour partager le fichier via WhatsApp
     shareFile: async (filePath: string) => {
-        try {
-            const shareOptions = {
-                url: `file://${filePath}`,
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // Type MIME pour les fichiers Excel
-                title: 'Partager les statistiques des joueurs',
-                message: 'Voici les statistiques des joueurs en format Excel',
-                social: Share.Social.WHATSAPP // Option pour cibler WhatsApp
-            };
+        const shareOptions = {
+            url: `file://${filePath}`,
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            title: 'Partager les statistiques des joueurs',
+            message: 'Voici les statistiques des joueurs en format Excel',
+            social: Share.Social.WHATSAPP
+        };
 
+        try {
             await Share.open(shareOptions);
             console.log('Fichier partagé avec succès');
-        } catch (error) {
-            console.error('Erreur lors du partage du fichier :', error);
+        } catch (error: any) {
+            if (error.message === 'User did not share') {
+                // L'utilisateur a simplement fermé la fenêtre de partage
+                console.log('Partage annulé par l\'utilisateur.');
+            } else {
+                // Autre erreur réelle
+                console.error('Erreur lors du partage du fichier :', error);
+            }
         }
     },
+
+
 
     /**
      * Supprime un fichier donné après utilisation.
