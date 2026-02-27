@@ -40,22 +40,31 @@ const initDB = () => {
 /**
  * Ajoute un nouveau joueur dans la base de données.
  * @param player - Un objet PlayerStat contenant les informations du joueur.
+ * @returns Une promesse résolue une fois le joueur ajouté.
  */
-const addPlayer = (player: PlayerStat) => {
-    db.transaction(tx => {
-        tx.executeSql(
-            `INSERT INTO players (name, position) VALUES (?, ?);`,
-            [player.name, player.position],
-            (_, result) => {
-                console.log('Joueur ajouté avec succès');
+const addPlayer = (player: PlayerStat): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `INSERT INTO players (name, position) VALUES (?, ?);`,
+                    [player.name, player.position],
+                    () => {
+                        console.log('Joueur ajouté avec succès');
+                        resolve();
+                    },
+                    (_, error) => {
+                        console.error("Erreur lors de l'ajout du joueur :", error);
+                        reject(error);
+                        return false;
+                    }
+                );
             },
-            (_, error) => {
-                console.error("Erreur lors de l'ajout du joueur :", error);
-                return false;
+            error => {
+                console.error("Erreur de transaction lors de l'ajout du joueur :", error);
+                reject(error);
             }
         );
-    }, error => {
-        console.error("Erreur de transaction lors de l'ajout du joueur :", error);
     });
 };
 
@@ -249,32 +258,32 @@ const reverseStatUpdate = (playerId: number, statType: string): Promise<void> =>
         getPlayerById(playerId)
             .then(player => {
                 if (player) {
-                    // Décrémenter la statistique correspondante
+                    // Décrémenter la statistique correspondante (pas en dessous de 0)
                     const updatedStats: Partial<PlayerStat> = {};
                     if (statType === 'attackSuccess') {
-                        updatedStats.attacks = player.attacks - 1;
-                        updatedStats.attackSuccess = player.attackSuccess - 1;
+                        updatedStats.attacks = Math.max(0, player.attacks - 1);
+                        updatedStats.attackSuccess = Math.max(0, player.attackSuccess - 1);
                     } else if (statType === 'attackFail') {
-                        updatedStats.attacks = player.attacks - 1;
+                        updatedStats.attacks = Math.max(0, player.attacks - 1);
                     } else if (statType === 'serviceSuccess') {
-                        updatedStats.services = player.services - 1;
-                        updatedStats.serviceSuccess = player.serviceSuccess - 1;
+                        updatedStats.services = Math.max(0, player.services - 1);
+                        updatedStats.serviceSuccess = Math.max(0, player.serviceSuccess - 1);
                     } else if (statType === 'serviceFail') {
-                        updatedStats.services = player.services - 1;
+                        updatedStats.services = Math.max(0, player.services - 1);
                     } else if (statType === 'receptionSuccess') {
-                        updatedStats.receptions = player.receptions - 1;
-                        updatedStats.receptionSuccess = player.receptionSuccess - 1;
+                        updatedStats.receptions = Math.max(0, player.receptions - 1);
+                        updatedStats.receptionSuccess = Math.max(0, player.receptionSuccess - 1);
                     } else if (statType === 'receptionFail') {
-                        updatedStats.receptions = player.receptions - 1;
+                        updatedStats.receptions = Math.max(0, player.receptions - 1);
                     } else if (statType === 'blockSuccess') {
-                        updatedStats.blocks = player.blocks - 1;
-                        updatedStats.blockSuccess = player.blockSuccess - 1;
+                        updatedStats.blocks = Math.max(0, player.blocks - 1);
+                        updatedStats.blockSuccess = Math.max(0, player.blockSuccess - 1);
                     } else if (statType === 'blockFail') {
-                        updatedStats.blocks = player.blocks - 1;
+                        updatedStats.blocks = Math.max(0, player.blocks - 1);
                     } else if (statType === 'passesFail') {
-                        updatedStats.passesFail = player.passesFail - 1;
+                        updatedStats.passesFail = Math.max(0, player.passesFail - 1);
                     } else if (statType === 'faults') {
-                        updatedStats.faults = player.faults - 1;
+                        updatedStats.faults = Math.max(0, player.faults - 1);
                     }
 
                     // Mettre à jour les statistiques
@@ -349,45 +358,83 @@ const deleteStatHistoryEntry = (id: number): Promise<void> => {
 };
 
 /**
- * Supprime un joueur de la base de données.
+ * Supprime un joueur de la base de données (et ses entrées dans stat_history).
  * @param playerId - L'identifiant du joueur à supprimer.
  */
-const deletePlayer = (playerId: number) => {
-    db.transaction(tx => {
-        tx.executeSql(`DELETE FROM players WHERE id = ?;`, [playerId]);
+const deletePlayer = (playerId: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `DELETE FROM stat_history WHERE playerId = ?;`,
+                    [playerId],
+                    () => {
+                        tx.executeSql(
+                            `DELETE FROM players WHERE id = ?;`,
+                            [playerId],
+                            () => resolve(),
+                            (_, error) => {
+                                reject(error);
+                                return false;
+                            }
+                        );
+                    },
+                    (_, error) => {
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            error => reject(error)
+        );
     });
 };
 
 /**
  * Réinitialise toutes les statistiques des joueurs dans la base de données.
+ * Vide également l'historique des statistiques.
  */
 const resetAllPlayerStats = (): Promise<void> => {
     return new Promise((resolve, reject) => {
-        db.transaction(tx => {
-            tx.executeSql(
-                `UPDATE players SET
-                    attacks = 0,
-                    attackSuccess = 0,
-                    services = 0,
-                    serviceSuccess = 0,
-                    receptions = 0,
-                    receptionSuccess = 0,
-                    blocks = 0,
-                    blockSuccess = 0,
-                    passesFail = 0,
-                    faults = 0`,
-                [],
-                (_, result) => {
-                    console.log("Statistiques des joueurs réinitialisées avec succès.");
-                    resolve();
-                },
-                (_, error) => {
-                    console.error("Erreur lors de la réinitialisation des statistiques :", error);
-                    reject(error);
-                    return false;
-                }
-            );
-        });
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `DELETE FROM stat_history;`,
+                    [],
+                    () => {
+                        tx.executeSql(
+                            `UPDATE players SET
+                                attacks = 0,
+                                attackSuccess = 0,
+                                services = 0,
+                                serviceSuccess = 0,
+                                receptions = 0,
+                                receptionSuccess = 0,
+                                blocks = 0,
+                                blockSuccess = 0,
+                                passesFail = 0,
+                                faults = 0`,
+                            [],
+                            () => {
+                                console.log("Statistiques des joueurs réinitialisées avec succès.");
+                                resolve();
+                            },
+                            (_, error) => {
+                                console.error("Erreur lors de la réinitialisation des statistiques :", error);
+                                reject(error);
+                                return false;
+                            }
+                        );
+                    },
+                    (_, error) => {
+                        console.error("Erreur lors de la suppression de l'historique :", error);
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            error => reject(error)
+        );
     });
 };
 

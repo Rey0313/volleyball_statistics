@@ -1,11 +1,11 @@
 // /components/StatInput.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, ToastAndroid, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { RouteProp, useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import DatabaseService from '../services/DatabaseService';
-import { PlayerStat } from '../models/PlayerStat';
+import PlayerStat from '../models/PlayerStat';
 
 type StatInputScreenRouteProp = RouteProp<RootStackParamList, 'StatInput'>;
 type StatInputScreenNavigationProp = StackNavigationProp<RootStackParamList, 'StatInput'>;
@@ -27,12 +27,12 @@ const StatInput: React.FC<Props> = ({ route }) => {
                     if (playerData) {
                         setPlayer(playerData);
                     } else {
-                        ToastAndroid.show("Joueur non trouvé", ToastAndroid.SHORT);
+                        Alert.alert("Info", "Joueur non trouvé");
                     }
                 })
                 .catch(error => {
                     console.error("Erreur lors du chargement du joueur :", error);
-                    ToastAndroid.show("Erreur lors du chargement du joueur", ToastAndroid.SHORT);
+                    Alert.alert("Erreur", "Erreur lors du chargement du joueur");
                 });
         }
     }, [isFocused, playerId]);
@@ -103,20 +103,20 @@ const StatInput: React.FC<Props> = ({ route }) => {
                     // Enregistrer dans l'historique
                     DatabaseService.addStatHistory(updatedPlayer.id, statType)
                         .then(() => {
-                            ToastAndroid.show("Statistiques mises à jour !", ToastAndroid.SHORT);
+                            Alert.alert("Succès", "Statistiques mises à jour !");
                             navigation.goBack();
                         })
                         .catch(error => {
                             console.error("Erreur lors de l'enregistrement de l'historique des stats :", error);
-                            ToastAndroid.show("Erreur lors de l'enregistrement de l'historique des stats", ToastAndroid.SHORT);
+                            Alert.alert("Erreur", "Erreur lors de l'enregistrement de l'historique des stats");
                         });
                 })
                 .catch(error => {
                     console.error("Erreur lors de la sauvegarde des statistiques :", error);
-                    ToastAndroid.show("Erreur lors de la sauvegarde des statistiques", ToastAndroid.SHORT);
+                    Alert.alert("Erreur", "Erreur lors de la sauvegarde des statistiques");
                 });
         } else {
-            ToastAndroid.show("Erreur : joueur non chargé", ToastAndroid.SHORT);
+            Alert.alert("Erreur", "Joueur non chargé");
         }
     };
 

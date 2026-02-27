@@ -1,6 +1,6 @@
 // /screens/CreatePlayerScreen.tsx
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import RNPickerSelect from 'react-native-picker-select';
 import DatabaseService from '../services/DatabaseService';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,15 +17,20 @@ const CreatePlayerScreen: React.FC<Props> = ({ navigation }) => {
     const [name, setName] = useState('');
     const [position, setPosition] = useState('');
 
-    const handleAddPlayer = () => {
+    const handleAddPlayer = async () => {
         if (name.trim() === '' || position.trim() === '') {
-            alert('Veuillez remplir tous les champs');
+            Alert.alert('Champs requis', 'Veuillez remplir tous les champs');
             return;
         }
 
-        const newPlayer = new PlayerStat(0, name, position);
-        DatabaseService.addPlayer(newPlayer);
-        navigation.goBack();
+        try {
+            const newPlayer = new PlayerStat(0, name, position);
+            await DatabaseService.addPlayer(newPlayer);
+            navigation.goBack();
+        } catch (error) {
+            console.error("Erreur lors de l'ajout du joueur :", error);
+            Alert.alert('Erreur', "Une erreur est survenue lors de l'ajout du joueur.");
+        }
     };
 
     return (

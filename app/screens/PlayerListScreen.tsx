@@ -178,7 +178,8 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
             );
         } catch (error) {
             console.error('Erreur lors de l\'exportation vers Excel :', error);
-            Alert.alert("Erreur", `Une erreur est survenue lors de l'exportation vers Excel : ${error.message || error.toString()}`);
+            const message = error instanceof Error ? error.message : String(error);
+            Alert.alert("Erreur", `Une erreur est survenue lors de l'exportation vers Excel : ${message}`);
         }
     };
 
@@ -187,9 +188,11 @@ const PlayerListScreen: React.FC<Props> = ({ navigation }) => {
   const resetPlayerStats = async () => {
     try {
       await DatabaseService.resetAllPlayerStats();
-      DatabaseService.getAllPlayers().then(setPlayers);
+      const players = await DatabaseService.getAllPlayers();
+      setPlayers(players);
       Alert.alert('Statistiques réinitialisées', 'Les statistiques de tous les joueurs ont été réinitialisées.');
     } catch (error) {
+      console.error('Erreur lors de la réinitialisation des statistiques :', error);
       Alert.alert('Erreur', 'Une erreur est survenue lors de la réinitialisation des statistiques.');
     }
   };

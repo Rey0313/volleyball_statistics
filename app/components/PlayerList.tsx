@@ -48,5 +48,10 @@ const styles = StyleSheet.create({
     },
     position: {
         color: 'blue',
+    },
+    stats: {
+        fontSize: 14,
+        color: '#555',
+        marginTop: 4,
     }
 );
